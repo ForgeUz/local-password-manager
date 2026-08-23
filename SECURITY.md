@@ -60,3 +60,11 @@ Release builds publish `build_hash.txt` (SHA-256 of the release binary). The
 `IntegrityHeartbeat` can verify the running binary against this manifest at
 runtime (advisory). Community members can rebuild from source and compare
 hashes (see [`tool_versions`](tool_versions) for the pinned toolchain).
+
+## Security audit
+
+See [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md) for the pre-release native-memory
+audit (all secrets handled in `SecureBuffer`/FFI memory with immediate
+`memzero`) and the Linux clipboard sensitive-MIME fix (password copies set
+`text/plain;charset=utf-8;sensitive=true` so clipboard managers do not log
+history).

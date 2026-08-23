@@ -53,6 +53,7 @@ monitoring.
   chain for opt-in inheritance.
 - **Autofill preview + capability sharing** — domain match + lookalike
   hard-stop before filling; scoped to the matched entry.
+- **Sensitive clipboard MIME** — Linux copies set `text/plain;charset=utf-8;sensitive=true` so clipboard managers (CopyQ/Diodon/Klipper) don't log password history.
 - **Local security dashboard** — duplicate/weak/old password analysis, fully
   local.
 - **Seccomp deny-list** — blocks only the scraping/attach syscalls
@@ -103,5 +104,6 @@ dart run tool/mutation_campaign.dart   # mutation kill score (100%)
 ## License
 
 MIT — see [LICENSE](LICENSE). See [SECURITY.md](SECURITY.md) for the security
-model and vulnerability reporting, and [CONTRIBUTING.md](CONTRIBUTING.md) for
+model and vulnerability reporting, [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for
+the native-memory + clipboard audit, and [CONTRIBUTING.md](CONTRIBUTING.md) for
 the development discipline.

@@ -16,17 +16,19 @@
 // Wayland-first is the documented limitation; X11 grab is the working path.
 // Dependencies: GTK3, ayatana-appindicator3, X11 (x11, xtst).
 
-// Channel names (must match lib/src/desktop/native_linux.dart).
-static constexpr char kTrayChannel[] = "vault_crypto/linux_tray";
-static constexpr char kHotkeyChannel[] = "vault_crypto/linux_hotkey";
-static constexpr char kTrayActivated[] = "trayActivated";
-static constexpr char kTrayLock[] = "trayLock";
-static constexpr char kTrayQuit[] = "trayQuit";
-static constexpr char kHotkeyPressed[] = "hotkeyPressed";
+// Channel names (must match lib/src/desktop/native_linux.dart + native_clipboard.dart).
+static const char kTrayChannel[] = "vault_crypto/linux_tray";
+static const char kHotkeyChannel[] = "vault_crypto/linux_hotkey";
+static const char kClipboardChannel[] = "vault_crypto/clipboard";
+static const char kTrayActivated[] = "trayActivated";
+static const char kTrayLock[] = "trayLock";
+static const char kTrayQuit[] = "trayQuit";
+static const char kHotkeyPressed[] = "hotkeyPressed";
 
 // Module-level state.
 static FlMethodChannel* g_tray_channel = nullptr;
 static FlMethodChannel* g_hotkey_channel = nullptr;
+static FlMethodChannel* g_clipboard_channel = nullptr;
 static AppIndicator* g_indicator = nullptr;
 
 // --- Tray callbacks (emit to Dart side) ---
@@ -119,6 +121,37 @@ static void desktop_hotkey_register() {
   (void)t;
 }
 
+// --- Clipboard (v5: sensitive MIME type) ---
+
+// GTK clipboard data callback: returns the stored text for a requested target.
+static void clipboard_get_func(GtkClipboard* /*clipboard*/, GtkSelectionData* data,
+                               guint /*info*/, gpointer user_data) {
+  const gchar* text = static_cast<const gchar*>(user_data);
+  gtk_selection_data_set(data, GDK_SELECTION_TYPE_STRING, 8,
+                         (const guint8*)text, strlen(text));
+}
+
+// GTK clipboard clear callback (required by gtk_clipboard_set_with_data).
+static void clipboard_clear_func(GtkClipboard* /*clipboard*/, gpointer /*user_data*/) {}
+
+// Copy text to the clipboard with the sensitive MIME type so clipboard managers
+// (CopyQ, Diodon, Klipper) do NOT log it. The freedesktop/GTK convention is to
+// offer both text/plain;charset=utf-8 and text/plain;charset=utf-8;sensitive=true.
+static void desktop_clipboard_copy(const gchar* text, gboolean sensitive) {
+  GtkClipboard* clip = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+  if (sensitive) {
+    // Advertise the sensitive target so managers skip history logging.
+    GtkTargetEntry targets[] = {
+        {(gchar*)"text/plain;charset=utf-8", 0, 0},
+        {(gchar*)"text/plain;charset=utf-8;sensitive=true", 0, 1},
+    };
+    gtk_clipboard_set_with_data(clip, targets, 2, clipboard_get_func,
+                                clipboard_clear_func, (gpointer)text);
+  } else {
+    gtk_clipboard_set_text(clip, text, -1);
+  }
+}
+
 // --- Method channel handler ---
 
 static void desktop_plugin_method_call(FlMethodChannel* channel,
@@ -140,6 +173,19 @@ static void desktop_plugin_method_call(FlMethodChannel* channel,
     fl_method_call_respond_success(call, nullptr, nullptr);
   } else if (g_strcmp0(method, "registerHotkey") == 0) {
     desktop_hotkey_register();
+    fl_method_call_respond_success(call, nullptr, nullptr);
+  } else if (g_strcmp0(method, "copy") == 0) {
+    FlValue* args = fl_method_call_get_args(call);
+    FlValue* text_value = fl_value_lookup_string(args, "text");
+    FlValue* sensitive_value = fl_value_lookup_string(args, "sensitive");
+    const gchar* text = text_value != nullptr ? fl_value_get_string(text_value) : "";
+    gboolean sensitive = sensitive_value != nullptr &&
+                         g_strcmp0(fl_value_get_string(sensitive_value), "true") == 0;
+    desktop_clipboard_copy(text, sensitive);
+    fl_method_call_respond_success(call, nullptr, nullptr);
+  } else if (g_strcmp0(method, "clear") == 0) {
+    GtkClipboard* clip = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+    gtk_clipboard_clear(clip);
     fl_method_call_respond_success(call, nullptr, nullptr);
   } else {
     fl_method_call_respond_error(call, "Unimplemented", method, nullptr, nullptr);
@@ -166,6 +212,12 @@ gboolean desktop_plugin_register(FlView* view) {
   g_hotkey_channel =
       fl_method_channel_new(messenger, kHotkeyChannel, FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(g_hotkey_channel,
+                                            desktop_plugin_method_call, nullptr,
+                                            nullptr);
+
+  g_clipboard_channel =
+      fl_method_channel_new(messenger, kClipboardChannel, FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(g_clipboard_channel,
                                             desktop_plugin_method_call, nullptr,
                                             nullptr);
 
