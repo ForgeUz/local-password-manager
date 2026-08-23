@@ -1,0 +1,14 @@
+{
+  "include": [
+    {
+      "relation": ["delegate_permission/common.crypto_autofill"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.example.vault_crypto",
+        "sha256_cert_fingerprints": [
+          "REPLACE_WITH_YOUR_APP_CERT_SHA256_FINGERPRINT"
+        ]
+      }
+    }
+  ]
+}

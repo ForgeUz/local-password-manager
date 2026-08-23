@@ -1,0 +1,9 @@
+# v5 E23/P.3 — pinned toolchain versions (reproducible builds).
+# Update these only with a recorded rebuild + hash verification.
+flutter: 3.24.5
+dart: 3.5.4
+libsodium: 1.0.18
+cmake: 3.28.3
+ninja: 1.11.1
+clang: 18.0
+gtk3: 3.24.41

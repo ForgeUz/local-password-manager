@@ -1,0 +1,45 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- v5 D.1/D.2: biometric + autofill permissions. USE_BIOMETRIC gates the
+         BiometricPrompt; USE_FINGERPRINT is required for the BIOMETRIC_STRONG
+         authenticator; BIND_AUTOFILL_SERVICE is required for the Autofill
+         Service (Phase D.2). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
+    <uses-permission android:name="android.permission.BIND_AUTOFILL_SERVICE"/>
+    <!-- Add existing application block below -->
+    <application
+        android:label="vault_crypto"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+        <!-- v5 D.2: AutofillService registration. The service is bound to the
+             BIND_AUTOFILL_SERVICE permission and configured by autofill.xml. -->
+        <service
+            android:name=".AutofillService"
+            android:permission="android.permission.BIND_AUTOFILL_SERVICE"
+            android:exported="true">
+            <meta-data
+                android:name="android.autofillservice"
+                android:resource="@xml/autofill" />
+        </service>
+    </application>
+</manifest>

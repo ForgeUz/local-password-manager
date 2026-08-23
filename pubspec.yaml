@@ -1,0 +1,25 @@
+name: vault_crypto
+description: Local-First Password Manager
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi: ^2.1.0
+  meta: ^1.9.0
+  local_auth: ^2.2.0
+  path_provider: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  test: ^1.24.0
+  
+
+flutter:
+  uses-material-design: true
