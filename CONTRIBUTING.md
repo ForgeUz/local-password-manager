@@ -33,7 +33,7 @@ Two rule files govern all work:
 
 - `flutter analyze` clean (only the pre-existing `flutter_lints` include
   warning is tolerated).
-- `flutter test` green.
+- `flutter test` green (203 tests).
 - `dart run tool/mutation_campaign.dart` reports ≥90% kill score.
 - Every honest limitation string present in the UI where the spec requires it.
 - No feature additions without a spec reference (v5_delta.md error ID).

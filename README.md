@@ -33,6 +33,10 @@ monitoring.
 - **KDF-bound 2FA** — TOTP is folded into the key derivation (math, not a
   check). Backup codes release the second-factor material through the real KDF
   path.
+- **Companion-device push approval** — 2-digit number-matching challenge with 3
+  options, rate-limited (defeats relay/phishing).
+- **FIDO2 hardware-key factor** — a P-256 signature is folded into the KDF
+  (keylogger-immune; wrong key fails at GCM).
 - **Shamir recovery kit** — split your master key into N shares; any K
   reconstruct it. Fully offline.
 - **True SSE search** — searchable symmetric encryption with bucket-padded tags;
@@ -47,6 +51,8 @@ monitoring.
   devices, with cancellation propagation and offline deferral.
 - **Liveness/inheritance** — signed epoch tokens + K-of-N shares + friction
   chain for opt-in inheritance.
+- **Autofill preview + capability sharing** — domain match + lookalike
+  hard-stop before filling; scoped to the matched entry.
 - **Local security dashboard** — duplicate/weak/old password analysis, fully
   local.
 - **Seccomp deny-list** — blocks only the scraping/attach syscalls
@@ -80,7 +86,7 @@ Release build with integrity hash:
 ## Tests
 
 ```bash
-flutter test        # 194 tests
+flutter test        # 203 tests
 flutter analyze
 dart run tool/mutation_campaign.dart   # mutation kill score (100%)
 ```
