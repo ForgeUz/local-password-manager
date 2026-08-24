@@ -4,6 +4,8 @@ import '../errors.dart';
 
 // Intent: v4 file header model (v4 §4.3). Fixed header + per-entry DEK table.
 // The entire header is passed as AAD to the outer AES-GCM (v4 §4.3 "header MAC").
+//
+// SECURITY CRITICAL: All parsing includes bounds checking to prevent buffer overflows.
 // Invariants: magic is GEN4; vault_count always 2; entry records round-trip.
 // Dependencies: dart:typed_data, V4Constants, errors.dart.
 
@@ -188,12 +190,17 @@ class V4Header {
     final nonce = bytes.sublist(off, off + V4Constants.nonceSize);
     off += V4Constants.nonceSize;
     final vaultCount = bytes[off++];
+    
+    // CRITICAL: Validate vaultCount matches spec (always 2)
+    if (vaultCount != V4Constants.vaultCount) {
+      throw CorruptBlobError('Invalid vault count: expected ${V4Constants.vaultCount}, got $vaultCount');
+    }
+    
     final entryCount = bd.getUint16(off, Endian.big);
     off += 2;
     final entries = <V4EntryRecord>[];
     for (var i = 0; i < entryCount; i++) {
-      // Parse one record by scanning: need to know its length. We re-parse
-      // incrementally by reading the record's own length fields.
+      // Parse one record by scanning: need to know its length.
       final rec = _parseOneRecord(bytes, off);
       entries.add(rec);
       off += _recordLength(rec);
@@ -221,27 +228,63 @@ class V4Header {
   static V4EntryRecord _parseOneRecord(Uint8List bytes, int off) {
     final bd = bytes.buffer.asByteData();
     var p = off;
+    
+    // SECURITY: Bounds checking helper
+    void checkBounds(int needed) {
+      if (p + needed > bytes.length) {
+        throw CorruptBlobError('Record extends beyond blob boundary');
+      }
+    }
+    
+    checkBounds(V4Constants.uuidSize);
     final id = bytes.sublist(p, p + V4Constants.uuidSize);
     p += V4Constants.uuidSize;
+    
+    checkBounds(1);
     final tier = bytes[p++];
+    
+    checkBounds(2);
     final dekLen = bd.getUint16(p, Endian.big);
     p += 2;
+    
+    // SECURITY: Sanity check DEK length (wrapped DEK = nonce(12) + ct(32) + tag(16) = 60 bytes typical)
+    if (dekLen > 1024) throw CorruptBlobError('DEK length unreasonably large');
+    checkBounds(dekLen);
     final wrappedDek = bytes.sublist(p, p + dekLen);
     p += dekLen;
+    
+    checkBounds(2);
     final tagCount = bd.getUint16(p, Endian.big);
     p += 2;
+    
+    // SECURITY: Sanity check tag count
+    if (tagCount > 100) throw CorruptBlobError('Too many search tags');
     final searchTags = <Uint8List>[];
     for (var i = 0; i < tagCount; i++) {
+      checkBounds(V4Constants.searchTagSize);
       searchTags.add(bytes.sublist(p, p + V4Constants.searchTagSize));
       p += V4Constants.searchTagSize;
     }
+    
+    checkBounds(2);
     final vcLen = bd.getUint16(p, Endian.big);
     p += 2;
+    
+    // SECURITY: Sanity check vector clock length
+    if (vcLen > 256) throw CorruptBlobError('Vector clock too large');
+    checkBounds(vcLen);
     final vectorClock = bytes.sublist(p, p + vcLen);
     p += vcLen;
+    
+    checkBounds(4);
     final ctLen = bd.getUint32(p, Endian.big);
     p += 4;
+    
+    // SECURITY: Sanity check ciphertext length (max 1MB per entry)
+    if (ctLen > 1024 * 1024) throw CorruptBlobError('Ciphertext too large');
+    checkBounds(ctLen);
     final ciphertext = bytes.sublist(p, p + ctLen);
+    
     return V4EntryRecord(
       id: id,
       tier: tier,

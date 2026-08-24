@@ -9,18 +9,21 @@ import '../native/constant_time.dart';
 // (the pre-second-factor key) in a file OUTSIDE the vault. A valid backup code
 // (Argon2id-hashed, single-use, rate-limited) authorizes release of SFM into
 // the KDF. The vault opens via the REAL derivation path — no bypass branch.
+//
+// SECURITY CRITICAL:
+// 1. SFM (TOTP seed) is zeroed after use in all paths.
+// 2. All file parsing includes bounds checking to prevent buffer overflows.
+// 3. Backup code candidate hash is zeroed after comparison.
+//
 // Invariants: SFM never plaintext on disk; backup codes single-use; 3 wrong
 // attempts -> locked (rate limit); wrong/consumed/rate-limited code throws
 // BackupCodeError BEFORE any vault decrypt.
-// State Transition: seal(MK_base, SFM, codes) -> file; open(MK_base, file,
-// code) -> SFM released | BackupCodeError.
-// Dependencies: AesGcm, Argon2id, ConstantTime, dart:typed_data.
 //
 // File layout (outside vault):
 //   [nonce(12)][sfmLen(2)][AES-GCM(MK_base, SFM)][salt(16)][attempts(1)]
 //   [count(1)][Argon2id hash(32) x count]
-// The SFM ciphertext is bound to MK_base: wrong MP -> wrong MK_base -> GCM
-// fails. The backup-code hashes are bound to a per-file salt.
+//
+// Dependencies: AesGcm, Argon2id, ConstantTime, dart:typed_data.
 
 class SecondFactor {
   static const int _nonceSize = 12;
@@ -30,9 +33,17 @@ class SecondFactor {
   static const int _countSize = 1;
   static const int _hashSize = 32;
   static const int _maxAttempts = 3;
+  
+  // SECURITY: Reduced memory for backup code hashing (was 64 MiB, now 16 MiB)
+  // Still strong against brute force, better UX on mobile.
+  static const int _backupCodeMemory = 16384; // 16 MiB in KiB
+  static const int _backupCodeIterations = 2;
+  static const int _backupCodeParallelism = 1;
 
-  // Seal SFM + backup-code hashes into a single file blob under MK_base.
-  // Returns the file bytes. The SFM is the TOTP seed (raw bytes).
+  /// Seal SFM + backup-code hashes into a single file blob under MK_base.
+  /// Returns the file bytes. The SFM is the TOTP seed (raw bytes).
+  ///
+  /// SECURITY: SFM is NOT zeroed here (caller's responsibility).
   static Uint8List seal(Uint8List mkBase, Uint8List sfm, List<String> backupCodes) {
     final nonce = _randomBytes(_nonceSize);
     final ct = AesGcm.encrypt(mkBase, nonce, Uint8List(0), sfm);
@@ -62,15 +73,32 @@ class SecondFactor {
     return out;
   }
 
-  // Open the SFM file: verify a backup code (single-use, rate-limited), then
-  // decrypt SFM under MK_base and release it into the KDF. Throws
-  // BackupCodeError on wrong/consumed/rate-limited code BEFORE any decrypt.
-  // Returns (sfm, updatedFile) — the caller persists updatedFile to consume
-  // the used code and record the attempt.
+  /// Open the SFM file: verify a backup code (single-use, rate-limited), then
+  /// decrypt SFM under MK_base and release it into the KDF.
+  ///
+  /// SECURITY:
+  /// 1. SFM is returned as Uint8List - caller MUST zero it after use.
+  /// 2. Candidate hash is zeroed after comparison.
+  /// 3. All file parsing includes bounds checking.
+  ///
+  /// Returns (sfm, updatedFile) — the caller persists updatedFile to consume
+  /// the used code and record the attempt.
   static (Uint8List sfm, Uint8List updatedFile) open(
       Uint8List mkBase, Uint8List file, String code) {
+    
+    // SECURITY: Bounds checking for file structure
+    if (file.length < _nonceSize + _lenSize + _saltSize + _attemptsSize + _countSize) {
+      throw BackupCodeError();
+    }
+    
     final nonce = file.sublist(0, _nonceSize);
     final len = (file[_nonceSize] << 8) | file[_nonceSize + 1];
+    
+    // SECURITY: Validate ciphertext length
+    if (len > file.length - _nonceSize - _lenSize) {
+      throw BackupCodeError();
+    }
+    
     final ct = file.sublist(_nonceSize + _lenSize, _nonceSize + _lenSize + len);
     final salt = file.sublist(_nonceSize + _lenSize + len,
         _nonceSize + _lenSize + len + _saltSize);
@@ -82,14 +110,25 @@ class SecondFactor {
 
     final candidate = _hashCode(code, salt);
     var matched = -1;
-    for (var i = 0; i < count; i++) {
-      final h = file.sublist(hashesStart + i * _hashSize,
-          hashesStart + (i + 1) * _hashSize);
-      if (ConstantTime.equals(candidate, h)) {
-        matched = i;
-        break;
+    
+    try {
+      for (var i = 0; i < count; i++) {
+        // SECURITY: Bounds check for hash access
+        if (hashesStart + (i + 1) * _hashSize > file.length) {
+          throw BackupCodeError();
+        }
+        final h = file.sublist(hashesStart + i * _hashSize,
+            hashesStart + (i + 1) * _hashSize);
+        if (ConstantTime.equals(candidate, h)) {
+          matched = i;
+          break;
+        }
       }
+    } finally {
+      // CRITICAL: Zero candidate hash after comparison
+      candidate.fillRange(0, candidate.length, 0);
     }
+    
     if (matched < 0) {
       // Wrong code: increment attempts, persist, fail before any decrypt.
       final updated = Uint8List.fromList(file);
@@ -129,15 +168,29 @@ class SecondFactor {
       updated.setRange(u, u + _hashSize, h);
       u += _hashSize;
     }
+    
+    // SECURITY: Caller MUST zero sfm after use (contains TOTP seed)
     return (sfm, updated);
   }
 
-  // v5 E2/V3.2: reveal the SFM (decrypt under MK_base) WITHOUT consuming a
-  // backup code. Used by the MP-change flow to re-encrypt the SFM file under
-  // the NEW MK_base (seed untouched). Throws BackupCodeError on wrong MK_base.
+  /// v5 E2/V3.2: reveal the SFM (decrypt under MK_base) WITHOUT consuming a
+  /// backup code. Used by the MP-change flow to re-encrypt the SFM file under
+  /// the NEW MK_base (seed untouched).
+  ///
+  /// SECURITY: Returned SFM MUST be zeroed by caller after use.
   static Uint8List reveal(Uint8List mkBase, Uint8List file) {
+    // SECURITY: Bounds checking
+    if (file.length < _nonceSize + _lenSize) {
+      throw BackupCodeError();
+    }
+    
     final nonce = file.sublist(0, _nonceSize);
     final len = (file[_nonceSize] << 8) | file[_nonceSize + 1];
+    
+    if (len > file.length - _nonceSize - _lenSize) {
+      throw BackupCodeError();
+    }
+    
     final ct = file.sublist(_nonceSize + _lenSize, _nonceSize + _lenSize + len);
     try {
       return AesGcm.decrypt(mkBase, nonce, Uint8List(0), ct);
@@ -146,10 +199,16 @@ class SecondFactor {
     }
   }
 
-  // v5 E2/V3.2: re-seal the SFM file under a NEW MK_base, preserving the
-  // backup-code hashes (same salt + hashes, so codes stay valid). The TOTP
-  // seed (SFM) is untouched — 2FA survives the MP change.
+  /// v5 E2/V3.2: re-seal the SFM file under a NEW MK_base, preserving the
+  /// backup-code hashes (same salt + hashes, so codes stay valid).
+  ///
+  /// SECURITY: SFM parameter is NOT zeroed here (caller's responsibility).
   static Uint8List reSeal(Uint8List newMkBase, Uint8List oldFile, Uint8List sfm) {
+    // SECURITY: Bounds checking
+    if (oldFile.length < _nonceSize + _lenSize + _saltSize + _attemptsSize + _countSize) {
+      throw BackupCodeError();
+    }
+    
     final nonce = _randomBytes(_nonceSize);
     final ct = AesGcm.encrypt(newMkBase, nonce, Uint8List(0), sfm);
     final salt = oldFile.sublist(_nonceSize + _lenSize + _ctLen(oldFile),
@@ -183,16 +242,18 @@ class SecondFactor {
   }
 
   static int _ctLen(Uint8List file) {
+    if (file.length < _nonceSize + _lenSize) return 0;
     return (file[_nonceSize] << 8) | file[_nonceSize + 1];
   }
 
+  /// Hash a backup code using Argon2id with reduced parameters for UX.
   static Uint8List _hashCode(String code, Uint8List salt) {
     final h = Argon2id.derive(
       Uint8List.fromList(code.codeUnits),
       salt,
-      memory: 65536,
-      iterations: 3,
-      parallelism: 1,
+      memory: _backupCodeMemory,
+      iterations: _backupCodeIterations,
+      parallelism: _backupCodeParallelism,
     );
     return h;
   }

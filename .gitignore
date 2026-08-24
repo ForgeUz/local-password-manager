@@ -30,11 +30,11 @@ v4.md
 v5.txt
 v5_delta.md
 roadmap_v2_to_v4.md
-status.md
 rules_heavy.txt
 rules_light.txt
 pass_v3_final_master_plan_EN.md
 build_hash.txt
+v6_delta.md
 
 # Sensitive (vault files)
 *.vault
