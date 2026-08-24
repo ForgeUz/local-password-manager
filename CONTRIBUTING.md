@@ -1,120 +1,306 @@
-# Contributing
+# Contributing to Vault Crypto
 
-This project is a zero-cloud, zero-trust, zero-recovery password manager. The codebase is held to an industrial verification standard. Read this before opening a PR.
-
----
-
-## Development discipline
-
-Two rule files govern all work:
-
-### `rules_light.txt` — Caveman Mode + Tracer-Bullet TDD
-
-- **Caveman Mode:** terse output, no filler, arrows (`->`) for causality.
-- **Tracer-Bullet TDD:** ONE failing test -> ONE minimal implementation -> refactor. NO speculative abstraction. NO whole-file rewrites (atomic patches only).
-- **Context Sync:** before any code block > 10 lines, output a `[Context Sync]` block (Abstraction Shift, Callers, Dependencies, Flow Summary).
-- **Atomic patches:** touch only the lines necessary. No drive-by refactoring.
-- **Compiler-in-the-loop:** no code is complete until it passes `analyzer -> typecheck -> test sandbox`.
-
-### `rules_heavy.txt` — J-Space Architecture
-
-- **MCTS hypothesis evaluation:** at least 3 hypotheses per decision, with confidence/risk/complexity scores.
-- **Adversarial dual-model review:** attack your own design for races, leaks, edge cases.
-- **Typestate over runtime validation:** make invalid states unrepresentable.
-- **Mutation testing:** 100% kill required on crypto + state machines, recorded (51/51 applied).
+Thank you for considering contributing to Vault Crypto. This project has strict engineering discipline because it handles secrets. Contributions must meet the same bar as the core.
 
 ---
 
-## Definition of done
+## 1. Doctrine (Read First)
 
-- `flutter analyze` clean (only the pre-existing `flutter_lints` include warning is tolerated).
-- `flutter test` green (203 tests).
-- `dart run tool/mutation_campaign.dart` reports 100% kill score (51/51 applied, 0 survived).
-- Every honest limitation string present in the UI where the spec requires it.
-- No feature additions without a spec reference (v5_delta.md error ID).
+Vault Crypto is a **zero-cloud, zero-trust, zero-recovery** password manager. Every contribution must respect this:
 
----
+- **Zero-Cloud** — no network egress except opt-in breach monitoring (5-char SHA-1 prefix). Do not add cloud features.
+- **Zero-Trust** — treat all input as hostile. Validate at boundaries, fail closed.
+- **Zero-Recovery-by-design** — no backdoors, no vendor reset, no recovery that weakens security.
+- **No home-rolled crypto** — use libsodium via FFI only. Never implement primitives.
+- **Sync optional** — removing sync must leave a working offline manager.
 
-## Security hardening verification
-
-Following the post-audit hardening (see `SECURITY_AUDIT.md` Task 3), all changes to the Trusted Computing Base (TCB) must verify:
-
-### Native Memory Zeroing (FFI)
-
-If you modify FFI wrappers (`argon2id.dart`, `aes_gcm.dart`, `hkdf.dart`):
-- Verify `sodium_memzero` is called before `calloc.free` for ALL secret buffers.
-- Add a mutation test that removes the `memzero` call; the test must fail.
-
-### Bounds Checking (Parser Hardening)
-
-If you modify parsers (`header.dart`, `second_factor.dart`):
-- Verify all length fields have sanity checks (DEK max 1024, ciphertext max 1MB, tag count max 100).
-- Verify `checkBounds()` helper is called before every `sublist` operation.
-- Add a mutation test that removes a bounds check; the test must fail with a malformed input.
-
-### Error Oracle Prevention
-
-If you modify error handling:
-- Verify all parsing/decryption errors throw `CorruptBlobError` or `DecryptionFailedError` (no information leakage).
-- Verify `padding.dart` catches all `FormatException` and rethrows as `CorruptBlobError`.
-- Add a mutation test that changes an error type; the test must fail.
-
-### URL Normalization (Search Tags)
-
-If you modify `search_tag.dart`:
-- Verify `http://`, `https://`, `ftp://` schemes are stripped.
-- Verify minimum query length (3 chars) is enforced.
-- Add a test that verifies `https://example.com` and `example.com` produce the same search tag.
+If your contribution violates any doctrine, it will be rejected. Discuss design changes via issue first.
 
 ---
 
-## Spec-first
+## 2. Development Discipline
 
-The guiding spec is [`v5_delta.md`](v5_delta.md) (the V5 Delta Specification, keyed by audit error IDs E1..E23). If code contradicts spec, code is wrong. Patch the spec BEFORE touching code.
+This project follows strict engineering rules. Contributors must comply.
+
+### 2.1 Atomic Patches Only
+
+- **Never rewrite entire files.** Submit minimal `git diff` patches.
+- Touch only lines necessary for the change.
+- No drive-by refactoring, no formatting changes, no dead-code removal unless explicitly requested.
+- One logical change per PR.
+
+### 2.2 Test-Driven Development (TDD)
+
+- Write ONE test → write ONE minimal implementation to pass it.
+- Red-Green-Refactor loop.
+- Do not write all tests then all code (no horizontal slices).
+- Write only minimal code to pass the current test. No speculative features.
+
+### 2.3 Verification Gates
+
+No code is complete until it passes, in order:
+
+1. **Type checker** — `flutter analyze` (0 errors)
+2. **Unit tests** — `flutter test`
+3. **Mutation tests** — for crypto/security logic, mutation score must stay at 100%
+
+Run before submitting:
+
+```bash
+flutter analyze
+flutter test
+dart run tool/mutation_campaign.dart
+```
+
+### 2.4 Property-Based Testing (PBT)
+
+For logic with mathematical invariants (crypto, parsers, state machines):
+
+- Define invariants explicitly.
+- Use fuzzing/PBT to test edge cases.
+- Static unit tests alone are insufficient.
+
+### 2.5 Immutability & Fail Fast
+
+- Prefer `const` and `final` data structures.
+- Raise exceptions immediately when preconditions violated.
+- No silent fallbacks for security errors.
 
 ---
 
-## How to contribute
+## 3. Code Documentation Standard
 
-1. Fork + branch (`fix/e17-atomic-mp-change`).
-2. Write ONE tracer-bullet test -> implement -> refactor.
-3. Run the full gate: `flutter analyze && flutter test`.
-4. Run the mutation campaign for crypto changes: `dart run tool/mutation_campaign.dart`.
-5. Open a PR with a terse Caveman-Mode summary + the error ID(s) closed.
+Every module and non-trivial function must have semantic doc comments. Use these tags:
 
----
+```dart
+// Intent: [why this exists]
+// Invariants: [conditions always true before/after]
+// State Transition: [Initial -> Trigger -> New State]
+// Dependencies: [external logic relied on]
+```
 
-## Code of conduct
+Document the **WHY** before the **WHAT**. Terse fragment sentences. Causal arrows (`->`) welcome.
 
-Be precise, be honest about limitations, never claim enforcement that isn't math. No home-rolled crypto — audited bindings only.
+Example:
 
----
-
-## Mutation testing details
-
-The mutation campaign (`tool/mutation_campaign.dart`) covers **51 mutations** across the entire Trusted Computing Base:
-
-| Group | Mutations | Invariants Tested |
-|-------|-----------|-------------------|
-| vault_crypto_v4 | 15 | format, outer GCM, MP change, duress, memory zeroing |
-| key_hierarchy | 5 | VRK derivation, DEK wrap/unwrap, CSPRNG |
-| header | 8 | parser, bounds checks, endianness |
-| padding | 4 | bucket masking, CSPRNG |
-| second_factor | 6 | rate-limit, single-use, constant-time, memory zeroing |
-| duress | 2 | domain separation |
-| search_tag | 5 | SearchKey zeroing, bucket padding, normalization |
-| argon2id | 3 | FFI memory zeroing, fail-closed |
-| aes_gcm | 2 | FFI memory zeroing, AES-NI check |
-| hkdf | 1 | PRK zeroing |
-
-**Current result: 51/51 killed (100% kill score)**
-
-If you add new crypto code or modify existing crypto code, you MUST add mutations to verify the new invariants. A "killed" result means the test suite detected the invariant violation.
+```dart
+// Intent: Derive VRK from master password + optional TOTP.
+// Invariants: VRK never persisted; IKM zeroed after HKDF.
+// State Transition: Locked -> derive(MP) -> Unlocked(VRK held in SecureBuffer).
+// Dependencies: Argon2id, HKDF, SecureBuffer.
+```
 
 ---
 
-## Honest limitations
+## 4. Architecture Rules
 
-- Mutation testing covers only what is encoded as a mutation. It does not replace external cryptographic audit.
-- `V4VaultEntry.password` remains a Dart `String` in the UI model (unavoidable Flutter limitation). The crypto core never holds it as String.
-- Equivalent mutants (security-only, not functional) are documented but not counted as gaps.
+### 4.1 State / View Separation
+
+- UI files only dispatch intent.
+- State machines process intent and emit new state.
+- Render functions strictly reflect current state.
+
+### 4.2 Pure Core / Imperative Shell
+
+- Crypto, validation, data transformation = 100% pure functions (no side effects, no I/O).
+- I/O lives at the shell (platform channels, file system).
+
+### 4.3 Do Not Touch Verified Core Without Discussion
+
+The crypto core is mutation-tested (51/51 kill). Files under `lib/src/crypto/` are **protected**.
+
+- Do not modify crypto core without opening an issue first.
+- Changes to crypto require: new invariant, new test, mutation coverage, maintainer approval.
+- V6.5 features must not alter verified crypto paths.
+
+---
+
+## 5. Project Structure
+
+```
+lib/
+  main.dart
+  screens/              # Top-level Flutter screens
+  src/
+    crypto/             # VERIFIED CORE (protected)
+      v4/               # Vault format, GCM, key hierarchy
+      native/           # FFI wrappers (libsodium)
+    security/           # Security tiers, dashboard, lookalike detection
+    autofill/           # Autofill enforcement logic
+    totp/               # RFC 6238 TOTP generator + import
+    sync/               # P2P sync (optional module)
+    vault/              # Vault service layer
+    ui/                 # Widgets
+android/                # Android platform layer (Kotlin)
+linux/                  # Linux platform layer (C++)
+test/                   # Tests, mirrors lib/ structure
+tool/                   # Mutation campaign, build scripts
+```
+
+Tests mirror `lib/` structure: `lib/src/totp/totp_generator.dart` → `test/totp/totp_generator_test.dart`.
+
+---
+
+## 6. Contribution Workflow
+
+### Step 1: Open an Issue
+
+- Bug report, feature request, or design question.
+- Security vulnerabilities: do NOT open a public issue. See `SECURITY.md` for private reporting.
+
+### Step 2: Fork & Branch
+
+```bash
+git clone https://github.com/<you>/local-password-manager.git
+cd local-password-manager
+git checkout -b feature/your-change   # or fix/your-bug
+```
+
+### Step 3: Implement (TDD)
+
+- Write failing test first.
+- Implement minimal code to pass.
+- Keep changes atomic.
+
+### Step 4: Verify
+
+```bash
+flutter pub get
+flutter analyze          # must be 0 errors
+flutter test             # all tests pass
+dart run tool/mutation_campaign.dart   # if touching security logic
+```
+
+### Step 5: Commit
+
+Commit message format:
+
+```
+<type>: <short summary>
+
+<why this change, not just what>
+
+Invariant: <what property is preserved/added>
+```
+
+Types: `fix`, `feat`, `test`, `docs`, `refactor`, `security`.
+
+Example:
+
+```
+fix: reject lookalike domains in autofill enforcer
+
+Homoglyph substitution (0/o, 1/l) could bypass domain match.
+Added confusable detection before exact-match check.
+
+Invariant: critical tier never autofills on non-exact domain.
+```
+
+### Step 6: Open Pull Request
+
+- Reference the issue (`Fixes #123`).
+- Describe the change and the invariant it preserves.
+- List tests added.
+- Confirm all verification gates pass.
+
+### Step 7: Review
+
+- Maintainer reviews for doctrine compliance, security, test coverage.
+- Security-sensitive PRs require explicit maintainer approval.
+- Expect requests for more tests or invariant documentation.
+
+---
+
+## 7. Security Checklist (for PRs touching security)
+
+Before submitting a PR that touches crypto, auth, or secret handling:
+
+- [ ] All secrets zeroed before scope exit (native + Dart)
+- [ ] Constant-time comparison for secret material
+- [ ] Bounds checking on all parser input
+- [ ] No information leakage via error types (no oracle)
+- [ ] Domain separation for any new HKDF use
+- [ ] AES-GCM nonce never reused with same key
+- [ ] New security invariant has a test
+- [ ] New security invariant has a mutation (if in TCB)
+- [ ] Doc comments include Intent/Invariants/State Transition/Dependencies
+- [ ] No secrets in logs, errors, or UI
+
+---
+
+## 8. V6.5 Feature Guidelines
+
+If contributing to V6.5 features:
+
+### Security Tiers
+- Never allow critical tier to autofill.
+- Never allow critical tier export.
+- Downgrades must require confirmation.
+
+### TOTP
+- Secrets must stay in `SecureBuffer`.
+- Never log or display secrets after import.
+- Follow RFC 6238 test vectors.
+
+### P2P Sync
+- No cloud relay. Local only.
+- Passphrase validation must stay strong.
+- Conflict resolution must block sync until resolved.
+
+### Android
+- No INTERNET permission in manifest.
+- `allowBackup` must stay `false`.
+- Domain must come from `AssistStructure.webDomain` (trusted).
+
+---
+
+## 9. Local Setup
+
+### Linux
+
+```bash
+sudo apt install -y clang cmake ninja-build pkg-config \
+  libgtk-3-dev liblzma-dev libstdc++-12-dev \
+  libsodium-dev libseccomp-dev \
+  libx11-dev libxtst-dev libayatana-appindicator3-dev libportal-dev
+
+flutter pub get
+flutter run -d linux
+```
+
+### Android
+
+```bash
+sudo apt install openjdk-17-jdk
+# Install Android SDK, NDK, platform-tools
+flutter pub get
+flutter build apk --debug
+```
+
+See `android/` for full Android setup. See `linux/DEPS.md` for Linux details.
+
+---
+
+## 10. What We Will Reject
+
+- Cloud sync or any network egress feature
+- Home-rolled crypto
+- Weakening zero-recovery doctrine
+- Rewriting verified crypto core without discussion
+- PRs without tests for security logic
+- PRs that fail `flutter analyze`
+- Marketing language in docs (honest limitations only)
+
+---
+
+## 11. Recognition
+
+Contributors are credited in release notes. Security researchers who find vulnerabilities are credited in security advisories (see `SECURITY.md`).
+
+---
+
+## 12. Questions?
+
+Open an issue for discussion. For security matters, use the private channel in `SECURITY.md`.
+
+---

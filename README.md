@@ -1,6 +1,6 @@
 # Vault Crypto — Zero-Cloud, Zero-Trust, Zero-Recovery Password Manager
 
-A local-first password manager for Linux (and Android, in progress). No cloud, no server, no telemetry. Your vault is a single encrypted file on your device; nothing ever leaves it unless you explicitly opt in to prefix-only breach monitoring.
+A local-first password manager for Linux and Android. No cloud, no server, no telemetry. Your vault is a single encrypted file on your device; nothing ever leaves it unless you explicitly opt in to prefix-only breach monitoring.
 
 **Zero-Recovery by design:** if you lose your master password AND your Shamir recovery shares, your data is gone. There is no backdoor, no vendor reset, no cloud copy. This is a feature, not a bug.
 
@@ -27,14 +27,83 @@ A local-first password manager for Linux (and Android, in progress). No cloud, n
 - **Shamir recovery kit** — split your master key into N shares; any K reconstruct it. Fully offline.
 - **True SSE search** — searchable symmetric encryption with bucket-padded tags; no domain decryption during search.
 - **Honeypot canaries** — realistic fake entries that trigger lock + lockdown on access.
-- **Risk tiers** — Standard / Sensitive / Critical with per-tier reveal re-auth.
 - **Atomic MP change** — re-wraps all DEKs + recomputes all search tags in one temp-file-then-rename save.
 - **Group shred + deferral** — duress shred is a group operation across paired devices, with cancellation propagation and offline deferral.
 - **Liveness/inheritance** — signed epoch tokens + K-of-N shares + friction chain for opt-in inheritance.
-- **Autofill preview + capability sharing** — domain match + lookalike hard-stop before filling; scoped to the matched entry.
 - **Sensitive clipboard MIME** — Linux copies set `text/plain;charset=utf-8;sensitive=true` so clipboard managers (CopyQ/Diodon/Klipper) don't log password history.
 - **Local security dashboard** — duplicate/weak/old password analysis, fully local.
 - **Seccomp deny-list** — blocks only the scraping/attach syscalls (ptrace, process_vm_*, kcmp, perf_event_open); Dart-VM-safe.
+
+---
+
+## What's New in V6.5 (Mass-User Readiness)
+
+V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. All new code passes 70 additional tests (273 total).
+
+### Security Tiers (Standard / Sensitive / Critical)
+
+Per-entry security classification with progressive authentication requirements:
+
+- **Standard** (streaming, forums): Autofill immediate, reveal with single tap, edit requires biometric.
+- **Sensitive** (email, shopping): Autofill with 5-second delay + re-auth prompt, reveal requires biometric, edit requires biometric.
+- **Critical** (banking, crypto, government): **Manual autofill only** (user must type), reveal requires master password + biometric, export blocked.
+
+Tier assignment is user-controlled (advisory suggestions based on domain). Downgrades require explicit confirmation. Tiers are stored in the encrypted vault blob (attacker cannot silently downgrade).
+
+**Enforcement points:**
+- Android Autofill Service respects tier (critical entries never autofill)
+- UI blocks export for critical entries
+- TOTP auto-copy disabled for critical tier
+
+### Built-in TOTP Generator (RFC 6238)
+
+Native TOTP (Time-based One-Time Password) generator compliant with RFC 6238:
+
+- **Import methods:** QR code scanner (otpauth:// URI), manual entry, bulk import from Google Authenticator export format
+- **Algorithms:** SHA1 (default), SHA256, SHA512
+- **Digits:** 6 or 8 (configurable per entry)
+- **Period:** 30 seconds (configurable)
+- **Display:** Current code with circular countdown timer, next code preview, copy to clipboard with 30-second auto-clear
+- **Validation:** ±1 window tolerance for clock drift
+- **Security:** TOTP secrets stored in vault (encrypted with per-entry DEK), never logged or exposed in plaintext after import
+
+**Doctrine compliance:** No cloud dependency. TOTP codes generated locally. Secrets stored in encrypted vault.
+
+### P2P BLE Sync (Offline Pairing)
+
+Peer-to-peer device synchronization via Bluetooth Low Energy (10-meter range):
+
+- **Pairing protocol:** High-entropy passphrase (≥12 characters, zxcvbn score ≥3) shared between devices
+- **PSK derivation:** Argon2id(passphrase, salt, 64 MiB, 3 iterations) raises offline dictionary cost
+- **Transport:** BLE for discovery + WiFi Direct for bulk transfer (Android Nearby Connections API)
+- **Security:** Noise NNpsk0 handshake with TOFU (Trust-On-First-Use) pinning, 60-second pairing window, max 3 attempts before cooldown
+- **Conflict resolution:** Manual (user chooses which version to keep), no auto-merge
+- **Tombstones:** Deleted entries stay deleted (30-day TTL prevents resurrection)
+
+**Honest limitations:**
+- Both devices must be online simultaneously (no async sync)
+- 10-meter BLE range enforced by physics (not software)
+- Pairing passphrase must be kept secret (if leaked, nearby attacker could sync)
+
+**Doctrine compliance:** No cloud relay. Data never leaves local network. User controls pairing.
+
+### Android Autofill Service (Android 13+)
+
+Native Android Autofill Framework integration:
+
+- **Domain extraction:** Trusted source (`AssistStructure.webDomain`), not spoofable page title
+- **Lookalike detection:** Homoglyph check (0/o, 1/l/i, 5/s), edit distance ≤1, subdomain impersonation detection
+- **Tier enforcement:** Critical tier → null FillResponse (hard stop, user must type manually)
+- **Security:** Vault must be unlocked (biometric/master) before credentials released
+- **Digital Asset Links:** App-domain association prevents phishing
+
+**Permissions (Android 13+):**
+- `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`, `BLUETOOTH_ADVERTISE` (BLE sync)
+- `NEARBY_WIFI_DEVICES` (WiFi Direct bulk transfer)
+- `USE_BIOMETRIC` (fingerprint unlock)
+- `CAMERA` (TOTP QR import)
+
+**Doctrine compliance:** `allowBackup=false` in manifest prevents Android auto-backup to Google Drive.
 
 ---
 
@@ -77,9 +146,11 @@ Dart-side zeroing via `fillRange(0, length, 0)`:
 
 ---
 
-## Build & Run (Linux Mint)
+## Build & Run
 
-Install dependencies (see [linux/DEPS.md](linux/DEPS.md)):
+### Linux (Mint/Ubuntu)
+
+Install dependencies (see `linux/DEPS.md`):
 
 ```bash
 sudo apt update && sudo apt install -y \
@@ -102,24 +173,72 @@ Release build with integrity hash:
 ./build_linux.sh   # builds --release + writes build_hash.txt
 ```
 
+### Android (13+)
+
+Install dependencies (see `android/DEPS.md`):
+
+```bash
+sudo apt install openjdk-17-jdk
+# Install Android SDK, NDK, platform-tools
+# Set ANDROID_HOME, JAVA_HOME
+```
+
+Build APK:
+
+```bash
+flutter pub get
+flutter build apk --release
+```
+
+Install on device:
+
+```bash
+adb install build/app/outputs/flutter-apk/app-release.apk
+```
+
+**First-run setup:**
+1. Enable Autofill Service: Settings → System → Languages & input → Autofill service → Vault Crypto
+2. Grant permissions: Biometric, Bluetooth, Camera (for TOTP QR import)
+3. Create master password (zxcvbn score ≥3 recommended)
+4. Setup recovery (Shamir shares or encrypted backup)
+
 ---
 
 ## Tests
 
 ```bash
-flutter test        # 203 tests
-flutter analyze
+flutter test        # 273 tests (203 core + 70 V6.5 features)
+flutter analyze     # 0 errors, 2 warnings (pre-existing, non-critical)
 dart run tool/mutation_campaign.dart   # mutation kill score (100%, 51/51 applied)
 ```
 
 **Test coverage:**
-- 203 unit + integration tests
+- 273 unit + integration tests
 - 51 mutations covering the entire Trusted Computing Base (TCB)
 - 100% mutation kill score (all security invariants verified)
+- RFC 6238 compliance tests for TOTP (SHA1/SHA256/SHA512)
+- Security tier policy tests (21 tests)
+- P2P pairing protocol tests (state machine, PSK derivation)
+- Lookalike domain detection tests
 
 ---
 
-## Honest limitations
+## Roadmap (V6)
+
+See `v6_delta.md` for detailed roadmap:
+
+- **P0:** External cryptographic audit (recruiting auditors)
+- **P1:** Publish project + gather community feedback
+- **P2:** Onboarding flow design (progressive disclosure)
+- **P3:** Recovery UX design (guided Shamir reconstruction)
+- **P4-P5:** Android device verification (real hardware testing)
+- **P6:** TPM sealing (Linux hardware-backed key storage)
+- **P7:** Noise PQ-hybrid transport (post-quantum future-proofing)
+- **P8:** Runtime integrity attestation (advisory)
+
+---
+
+## Honest Limitations
 
 - A knowledgeable attacker can suspect deniability exists but cannot prove it.
 - A coercer holding BOTH passwords defeats the scheme.
@@ -127,9 +246,39 @@ dart run tool/mutation_campaign.dart   # mutation kill score (100%, 51/51 applie
 - Behavioral biometrics is an anomaly deterrent, never authentication; FP/FN are measured empirically, not fabricated.
 - Mutation testing covers only what is encoded as a mutation. It does not replace external cryptographic audit.
 - `V4VaultEntry.password` remains a Dart `String` in the UI model (unavoidable Flutter limitation). The crypto core never holds it as String.
+- **V6.5:** P2P sync requires both devices online simultaneously (no async sync). BLE range ~10m is a physical limitation, not software-enforced. TOTP secrets stored in vault (single point of failure if vault compromised). Security tiers are advisory (determined user can bypass UI).
+
+---
+
+## Contributing
+
+See `CONTRIBUTING.md` for development discipline and how to contribute.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE). See [SECURITY.md](SECURITY.md) for the security model and vulnerability reporting, [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the native-memory + clipboard audit + extended mutation campaign, and [CONTRIBUTING.md](CONTRIBUTING.md) for the development discipline.
+MIT License. See `LICENSE` for details.
+
+---
+
+## Security Policy
+
+See `SECURITY.md` for threat model, vulnerability reporting, and security contacts.
+
+---
+
+## Audit Status
+
+See `SECURITY_AUDIT.md` for internal audit results and hardening applied.
+
+**Current status:** Internal audit complete (51/51 mutation kill). External audit pending (recruiting auditors).
+
+---
+
+## Links
+
+- **GitHub:** https://github.com/ForgeUz/local-password-manager
+- **Issues:** https://github.com/ForgeUz/local-password-manager/issues
+- **Security:** See `SECURITY.md`
+- **Audit Brief:** See `AUDIT_BRIEF_V65.md`

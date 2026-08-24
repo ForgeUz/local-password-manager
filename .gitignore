@@ -7,7 +7,7 @@ build/
 .pub-cache/
 .pub/
 /coverage/
-pubspec.lock
+#pubspec.lock
 
 # IDE
 .idea/
@@ -35,9 +35,19 @@ rules_light.txt
 pass_v3_final_master_plan_EN.md
 build_hash.txt
 v6_delta.md
+v6.5_delta.md
 
 # Sensitive (vault files)
 *.vault
 *.blob
 vault.decoy
 sfm_file
+
+*.log
+*.backup
+fix_v65_inconsistencies*.sh
+android/local.properties
+*.keystore
+*.jks
+key.properties
+

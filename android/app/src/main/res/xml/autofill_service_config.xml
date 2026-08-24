@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Intent: Autofill service configuration referenced by AndroidManifest.
+  Declares what the autofill service supports.
+
+  Invariants:
+  - supportsInlineSuggestions=true: inline autofill suggestions in keyboard
+  - settingsActivity points to Flutter settings for user configuration
+
+  Dependencies: Android Autofill Framework schema
+-->
+<autofill-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:supportsInlineSuggestions="true"
+    android:settingsActivity="com.vaultcrypto.MainActivity" />

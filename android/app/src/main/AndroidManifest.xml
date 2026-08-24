@@ -1,16 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Intent: Android manifest declaring all permissions and services required
+  for V6.5 features: BLE P2P sync, Autofill Service, biometric unlock.
+
+  Invariants:
+  - BLE permissions split by API level (legacy vs Android 12+/13+)
+  - AutofillService registered with correct intent-filter + meta-data
+  - FLAG_SECURE set in code (not manifest) for screenshot protection
+  - No INTERNET permission for core vault ops (zero-cloud doctrine)
+    INTERNET only needed if WiFi Direct fallback uses sockets
+
+  State Transition:
+    AppInstall -> PermissionGrant(runtime) -> BLE/Autofill available
+    AutofillFramework.onFillRequest -> VaultAutofillService.onFillRequest
+
+  Dependencies: Android Autofill Framework, Nearby Connections, BiometricPrompt
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- v5 D.1/D.2: biometric + autofill permissions. USE_BIOMETRIC gates the
-         BiometricPrompt; USE_FINGERPRINT is required for the BIOMETRIC_STRONG
-         authenticator; BIND_AUTOFILL_SERVICE is required for the Autofill
-         Service (Phase D.2). -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
-    <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
-    <uses-permission android:name="android.permission.BIND_AUTOFILL_SERVICE"/>
-    <!-- Add existing application block below -->
+
+    <!-- ============================================================ -->
+    <!-- BLUETOOTH PERMISSIONS (BLE P2P Sync, 10m range)             -->
+    <!-- ============================================================ -->
+
+    <!-- Legacy Bluetooth (Android 11 and below, API <= 30) -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <!-- Android 12+ (API 31+): granular Bluetooth permissions -->
+    <!-- neverForLocationServices: we do NOT derive location from BLE -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_CONNECT"
+        android:usesPermissionFlags="neverForLocationServices" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocationServices" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <!-- Android 13+ (API 33+): WiFi Direct for bulk sync transfer -->
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocationServices" />
+
+    <!-- Location required ONLY for BLE scanning on Android 11 and below.
+         On API 31+ the neverForLocationServices flag removes this need. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
+
+    <!-- ============================================================ -->
+    <!-- WIFI PERMISSIONS (WiFi Direct bulk transfer after BLE pair)  -->
+    <!-- ============================================================ -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
+    <!-- ============================================================ -->
+    <!-- BIOMETRIC PERMISSIONS (vault unlock via fingerprint/face)    -->
+    <!-- ============================================================ -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <!-- Legacy fingerprint (Android 9 and below) -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
+    <!-- ============================================================ -->
+    <!-- NETWORK (only for WiFi Direct, NOT internet cloud sync)      -->
+    <!-- zero-cloud doctrine: no cloud endpoints, only local P2P      -->
+    <!-- ============================================================ -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Hardware features: BLE required, WiFi Direct optional -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true" />
+    <uses-feature
+        android:name="android.hardware.wifi.direct"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
+    <!-- ============================================================ -->
+    <!-- CAMERA (TOTP QR code import)                                 -->
+    <!-- ============================================================ -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- ============================================================ -->
+    <!-- APPLICATION                                                  -->
+    <!-- ============================================================ -->
     <application
-        android:label="vault_crypto"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:label="Vault Crypto"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
+        <!--
+          allowBackup=false + fullBackupContent=false:
+          CRITICAL for zero-cloud doctrine. Prevents Android from
+          auto-backing up vault file to Google Drive. Vault must
+          never leave the device via OS-level backup.
+        -->
+
+        <!-- Main Flutter activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -20,26 +120,42 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- ======================================================== -->
+        <!-- AUTOFILL SERVICE                                          -->
+        <!-- Registered with Android Autofill Framework.             -->
+        <!-- User must enable in Settings > System > Autofill.       -->
+        <!-- ======================================================== -->
+        <service
+            android:name=".VaultAutofillService"
+            android:exported="true"
+            android:permission="android.permission.BIND_AUTOFILL_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.autofill.AutofillService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.autofill"
+                android:resource="@xml/autofill_service_config" />
+        </service>
+
+        <!-- Flutter embedding meta-data (required by Flutter engine) -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- v5 D.2: AutofillService registration. The service is bound to the
-             BIND_AUTOFILL_SERVICE permission and configured by autofill.xml. -->
-        <service
-            android:name=".AutofillService"
-            android:permission="android.permission.BIND_AUTOFILL_SERVICE"
-            android:exported="true">
-            <meta-data
-                android:name="android.autofillservice"
-                android:resource="@xml/autofill" />
-        </service>
     </application>
+
+    <!-- Queries for package visibility (Android 11+) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
 </manifest>
