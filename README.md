@@ -1,4 +1,3 @@
-```markdown
 # Vault Crypto — Zero-Cloud, Zero-Trust, Zero-Recovery Password Manager
 
 A local-first password manager for Linux (and Android, in progress). No cloud, no server, no telemetry. Your vault is a single encrypted file on your device; nothing ever leaves it unless you explicitly opt in to prefix-only breach monitoring.
@@ -134,4 +133,3 @@ dart run tool/mutation_campaign.dart   # mutation kill score (100%, 51/51 applie
 ## License
 
 MIT — see [LICENSE](LICENSE). See [SECURITY.md](SECURITY.md) for the security model and vulnerability reporting, [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the native-memory + clipboard audit + extended mutation campaign, and [CONTRIBUTING.md](CONTRIBUTING.md) for the development discipline.
-```
