@@ -6,6 +6,7 @@ import 'constant_time.dart';
 import 'hkdf.dart';
 import 'hmac_sha256.dart';
 import 'sodium_ffi.dart';
+import 'dart:io';
 
 // Intent: Startup self-test for the libsodium FFI layer. Fail-closed: if any
 // primitive misbehaves, the app must not proceed with crypto.

@@ -1,13 +1,7 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 import 'sodium_ffi.dart';
-
-// Intent: Native secure memory via libsodium sodium_malloc/sodium_memzero.
-// Invariants: dispose() zeroes all bytes; double-dispose safe; never a Dart String.
-// State Transition: alloc -> write/read/runUnlocked -> dispose (zeroed, kept valid).
-// Dependencies: libsodium.so.23, dart:ffi, dart:typed_data.
-// Trade-off: native allocation kept alive after dispose (view stays valid, no UAF);
-// freed at process exit. Zero-wipe is the security property; free is deferred.
+import 'dart:io';
 
 // Intent: Native secure memory via libsodium sodium_malloc/sodium_memzero.
 // Invariants: dispose() zeroes all bytes; double-dispose safe; never a Dart String.
@@ -38,7 +32,7 @@ class SecureBuffer {
 
   static SecureBuffer alloc(int length) {
     _ensureInit();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final sodiumMalloc = lib.lookupFunction<SodiumMallocNative, SodiumMallocDart>(
       'sodium_malloc',
     );
@@ -88,7 +82,7 @@ class SecureBuffer {
 
   void dispose() {
     if (_isDisposed) return;
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final sodiumMemzero = lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>(
       'sodium_memzero',
     );

@@ -9,6 +9,8 @@ import 'dashboard_screen.dart';
 import 'decoy_setup_screen.dart';
 import 'entry_detail_screen.dart';
 import 'settings_screen.dart';
+import 'sync_screen.dart';
+import 'totp_screen.dart';
 
 class UnlockedScreen extends StatefulWidget {
   final AppStore store;
@@ -45,22 +47,42 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Add Entry'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Title')),
-            TextField(controller: userCtrl, decoration: const InputDecoration(labelText: 'Username')),
-            TextField(controller: passCtrl, decoration: const InputDecoration(labelText: 'Password')),
-          ],
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleCtrl,
+                  autocorrect: false,
+                  decoration: const InputDecoration(labelText: 'Title'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: userCtrl,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: const InputDecoration(labelText: 'Username'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: passCtrl,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  keyboardType: TextInputType.visiblePassword,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                ),
+              ],
+            ),
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               if (titleCtrl.text.isNotEmpty) {
-                // Await the async save so a crypto/disk failure surfaces as a
-                // SnackBar instead of an unhandled async crash. The entry is
-                // persisted to disk (writeBlob) + dispatched to the store.
                 widget.service.addEntry(VaultEntry(
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
                   title: titleCtrl.text,
@@ -87,59 +109,56 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
   Widget build(BuildContext context) {
     final state = widget.store.currentState as Unlocked;
     final all = state.vaultData.entries;
-    // Filter by service.search(query) if non-empty, else show all.
     final query = _query.trim();
     final ids = query.isEmpty ? null : widget.service.search(query);
     final shown = query.isEmpty
         ? all
         : all.where((e) => ids!.contains(e.id)).toList();
 
-    // v5 deniability: when the secondary (duress) vault is open, the UI must
-    // look EXACTLY like the primary vault — same title, same actions. The
-    // service's isDuress flag is never surfaced to the user.
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vault Unlocked'),
+        // Keep the AppBar lean so the title is not truncated on narrow phones.
+        // Secondary actions live in the overflow menu (PopupMenuButton).
         actions: [
           IconButton(
-            icon: const Icon(Icons.security),
-            tooltip: 'Security Dashboard',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DashboardScreen(service: widget.service),
-                ),
-              );
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.lock_clock),
+            tooltip: 'Lock now',
             onPressed: () => widget.store.dispatch(AutoLock()),
           ),
-          IconButton(
-            icon: const Icon(Icons.visibility_off),
-            tooltip: 'Add Secondary Vault',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => DecoySetupScreen(service: widget.service),
-                ),
-              );
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            onSelected: (v) {
+              switch (v) {
+                case 'totp':
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => TotpScreen()));
+                  break;
+                case 'sync':
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => SyncScreen(service: widget.service)));
+                  break;
+                case 'dashboard':
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => DashboardScreen(service: widget.service)));
+                  break;
+                case 'decoy':
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => DecoySetupScreen(service: widget.service)));
+                  break;
+                case 'settings':
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => SettingsScreen(service: widget.service)));
+                  break;
+              }
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SettingsScreen(service: widget.service),
-                ),
-              );
-            },
+            itemBuilder: (ctx) => const [
+              PopupMenuItem(value: 'totp', child: ListTile(leading: Icon(Icons.timer), title: Text('TOTP Generator'))),
+              PopupMenuItem(value: 'sync', child: ListTile(leading: Icon(Icons.sync), title: Text('P2P Sync'))),
+              PopupMenuItem(value: 'dashboard', child: ListTile(leading: Icon(Icons.security), title: Text('Security Dashboard'))),
+              PopupMenuItem(value: 'decoy', child: ListTile(leading: Icon(Icons.visibility_off), title: Text('Secondary Vault'))),
+              PopupMenuItem(value: 'settings', child: ListTile(leading: Icon(Icons.settings), title: Text('Settings'))),
+            ],
           ),
         ],
       ),
@@ -167,22 +186,37 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
                     itemCount: shown.length,
                     itemBuilder: (ctx, i) {
                       final entry = shown[i];
-                      return ListTile(
-                        title: Text(entry.title),
-                        subtitle: Text(entry.username),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => EntryDetailScreen(
-                                service: widget.service,
-                                clipboard: widget.clipboard,
-                                entryId: entry.id,
-                                title: entry.title,
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          title: Text(
+                            entry.title,
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            entry.username,
+                            style: const TextStyle(fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => EntryDetailScreen(
+                                  service: widget.service,
+                                  clipboard: widget.clipboard,
+                                  entryId: entry.id,
+                                  title: entry.title,
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       );
                     },
                   ),

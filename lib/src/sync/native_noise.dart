@@ -19,6 +19,11 @@ import '../crypto/native/sodium_ffi.dart';
 const int _KEYBYTES = 32;
 const int _NONCEBYTES = 24;
 const int _ABYTES = 16;
+// Fixed nonce for the self-box round-trip test. crypto_box REQUIRES the same
+// nonce on encrypt and decrypt; a random nonce per call breaks the round-trip.
+// This is test-only (self-box proof); real pairing derives a per-message nonce.
+final Uint8List _SELF_NONCE = Uint8List.fromList(
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
 
 typedef BoxKeypairNative = Int32 Function(Pointer<Void>, Pointer<Void>);
 typedef BoxKeypairDart = int Function(Pointer<Void>, Pointer<Void>);
@@ -66,7 +71,7 @@ class NativeNoise {
     final skPtr = calloc.allocate<Uint8>(_KEYBYTES);
     final msgPtr = calloc.allocate<Uint8>(msg.length);
     try {
-      nonce.asTypedList(_NONCEBYTES).fillRange(0, _NONCEBYTES, 0);
+      nonce.asTypedList(_NONCEBYTES).setAll(0, _SELF_NONCE);
       pkPtr.asTypedList(_KEYBYTES).setAll(0, _pk);
       skPtr.asTypedList(_KEYBYTES).setAll(0, _sk);
       msgPtr.asTypedList(msg.length).setAll(0, msg);
@@ -84,6 +89,8 @@ class NativeNoise {
   }
 
   Uint8List decryptFromSelf(Uint8List ct) {
+    // Fail-fast: ciphertext must carry at least the 16-byte box tag.
+    if (ct.length < _ABYTES) throw StateError('crypto_box ciphertext too short');
     final lib = DynamicLibrary.open('libsodium.so.23');
     final box = lib.lookupFunction<BoxOpenEasyNative, BoxOpenEasyDart>('crypto_box_open_easy');
     final pt = calloc.allocate<Uint8>(ct.length - _ABYTES);
@@ -92,7 +99,7 @@ class NativeNoise {
     final skPtr = calloc.allocate<Uint8>(_KEYBYTES);
     final ctPtr = calloc.allocate<Uint8>(ct.length);
     try {
-      nonce.asTypedList(_NONCEBYTES).fillRange(0, _NONCEBYTES, 0);
+      nonce.asTypedList(_NONCEBYTES).setAll(0, _SELF_NONCE);
       pkPtr.asTypedList(_KEYBYTES).setAll(0, _pk);
       skPtr.asTypedList(_KEYBYTES).setAll(0, _sk);
       ctPtr.asTypedList(ct.length).setAll(0, ct);

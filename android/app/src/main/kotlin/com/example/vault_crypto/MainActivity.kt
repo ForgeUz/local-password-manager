@@ -4,14 +4,17 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -21,25 +24,128 @@ import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * MainActivity for Vault Crypto Flutter app.
- *
- * Intent: Bridge Android platform APIs to Flutter via MethodChannels.
- * Handles: clipboard (sensitive MIME), biometric Keystore, BLE plugin registration.
- *
- * Invariants:
- * - Clipboard with sensitive=true uses EXTRA_IS_SENSITIVE (Android 13+)
- * - Biometric key invalidated on new fingerprint enrollment
- * - VRK never stored in plaintext (encrypted under Keystore key)
- * - BLE plugin registered as MethodCallHandler (not FlutterActivity)
- *
- * Dependencies: AndroidKeyStore, BiometricPrompt, Nearby Connections (via plugin)
+ * MainActivity for Vault Crypto.
+ * Bridges: clipboard (sensitive MIME), biometric Keystore, BLE plugin,
+ * and a native file picker (Storage Access Framework) so the user can
+ * visually choose where to save/load the encrypted vault file.
  */
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private val CLIPBOARD_CHANNEL = "vault_crypto/clipboard"
     private val BIOMETRIC_CHANNEL = "vault_crypto/biometric"
+    private val FILE_PICKER_CHANNEL = "vault_crypto/file_picker"
     private val KEY_ALIAS = "vault_biometric_key"
 
     private var blePlugin: BleTransportPlugin? = null
+
+    // Pending platform-channel results while the system picker is open
+    private var pendingExportPath: String? = null
+    private var pendingExportResult: MethodChannel.Result? = null
+    private var pendingImportResult: MethodChannel.Result? = null
+
+    // Modern Activity Result API (does not conflict with Flutter internals).
+    // EXPORT: user picks a destination in the native "Save as" dialog,
+    // then we stream the temp vault file into the chosen URI.
+    private val exportLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.data
+        val tmpPath = pendingExportPath
+        if (result.resultCode == RESULT_OK && uri != null && tmpPath != null) {
+            try {
+                val bytes = File(tmpPath).readBytes()
+                contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                File(tmpPath).delete()
+                pendingExportResult?.success(uri.toString())
+            } catch (e: Exception) {
+                pendingExportResult?.error("write_failed", e.message, null)
+            }
+        } else {
+            pendingExportResult?.error("cancelled", "Export cancelled", null)
+            tmpPath?.let { File(it).delete() }
+        }
+        pendingExportResult = null
+        pendingExportPath = null
+    }
+
+    // IMPORT: user picks any file in the native "Open" dialog,
+    // we read its bytes and hand them to Dart for MP verification.
+    private val importLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.data
+        if (result.resultCode == RESULT_OK && uri != null) {
+            try {
+                val bytes = contentResolver.openInputStream(uri)?.readBytes()
+                pendingImportResult?.success(bytes)
+            } catch (e: Exception) {
+                pendingImportResult?.error("read_failed", e.message, null)
+            }
+        } else {
+            pendingImportResult?.error("cancelled", "Import cancelled", null)
+        }
+        pendingImportResult = null
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Prevent screenshots and recent apps preview (security)
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_SECURE,
+            android.view.WindowManager.LayoutParams.FLAG_SECURE
+        )
+
+        // Request Bluetooth runtime permissions per API level.
+        // Intent: Nearby Connections needs these at runtime; manifest declares
+        // them but Android 12+ requires an explicit user grant prompt.
+        // State Transition: launch -> requestPermissions -> onRequestPermissionsResult.
+        val notGranted = requiredPermissions().filter {
+            ContextCompat.checkSelfPermission(this, it) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (notGranted.isNotEmpty()) {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                this, notGranted.toTypedArray(), REQ_BLE
+            )
+        }
+    }
+
+    // Full BLE permission set per API level. Mirrors BleTransportPlugin.hasBlePermissions().
+    // API 33+: add NEARBY_WIFI_DEVICES (WiFi Direct bulk transfer).
+    // API <= 30: legacy ACCESS_FINE_LOCATION (BLE scanning).
+    private val REQ_BLE = 1001
+
+    private fun requiredPermissions(): Array<String> = when {
+        Build.VERSION.SDK_INT >= 33 -> arrayOf(
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.BLUETOOTH_SCAN,
+            android.Manifest.permission.BLUETOOTH_ADVERTISE,
+            android.Manifest.permission.NEARBY_WIFI_DEVICES,
+        )
+        Build.VERSION.SDK_INT >= 31 -> arrayOf(
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.BLUETOOTH_SCAN,
+            android.Manifest.permission.BLUETOOTH_ADVERTISE,
+        )
+        else -> arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQ_BLE) {
+            val sb = StringBuilder("BLE permission grant result: ")
+            for (i in 0 until permissions.size) {
+                if (i > 0) sb.append(", ")
+                val granted = grantResults[i] ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                sb.append(permissions[i]).append('=').append(granted)
+            }
+            android.util.Log.d("VaultCrypto", sb.toString())
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -82,18 +188,40 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // File picker channel: native "Save as" / "Open" dialogs (SAF)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FILE_PICKER_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "pickExportPath" -> {
+                        pendingExportPath = call.argument<String>("tmpPath")
+                        pendingExportResult = result
+                        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                            putExtra(Intent.EXTRA_TITLE, "vault_export.vault")
+                        }
+                        exportLauncher.launch(intent)
+                    }
+                    "pickImportPath" -> {
+                        pendingImportResult = result
+                        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "*/*"
+                        }
+                        importLauncher.launch(intent)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
     }
 
-    /**
-     * Copy text to clipboard with optional sensitive flag.
-     * Android 13+ (API 33): EXTRA_IS_SENSITIVE prevents UI preview.
-     */
     private fun copyToClipboard(text: String, sensitive: Boolean) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("vault", text)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && sensitive) {
-            val extras = Bundle()
+            val extras = PersistableBundle()
             extras.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
             clip.description.extras = extras
         }
@@ -101,18 +229,11 @@ class MainActivity : FlutterActivity() {
         clipboard.setPrimaryClip(clip)
     }
 
-    /**
-     * Clear clipboard by setting empty content.
-     */
     private fun clearClipboard() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("", ""))
     }
 
-    /**
-     * Authenticate user via biometric prompt.
-     * Returns true on success, false on cancel/error.
-     */
     private fun authenticate(result: MethodChannel.Result) {
         val executor = ContextCompat.getMainExecutor(this)
         val biometricPrompt = BiometricPrompt(
@@ -125,9 +246,7 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
 
-                override fun onAuthenticationFailed() {
-                    // Do not return false immediately, user might retry
-                }
+                override fun onAuthenticationFailed() {}
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     result.success(false)
@@ -146,15 +265,10 @@ class MainActivity : FlutterActivity() {
             val cipher = initCipher()
             biometricPrompt.authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))
         } catch (e: Exception) {
-            // Fallback if key is invalidated or unavailable
             biometricPrompt.authenticate(promptInfo)
         }
     }
 
-    /**
-     * Initialize AES-GCM cipher with AndroidKeyStore key.
-     * Key invalidated on new biometric enrollment (security).
-     */
     private fun initCipher(): Cipher {
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
@@ -186,17 +300,12 @@ class MainActivity : FlutterActivity() {
         return cipher
     }
 
-    /**
-     * Store wrapped VRK in Keystore-encrypted file.
-     * VRK never stored in plaintext.
-     */
     private fun storeVrk(blob: ByteArray, result: MethodChannel.Result) {
         try {
             val cipher = initCipher()
             val encrypted = cipher.doFinal(blob)
             val iv = cipher.iv
 
-            // Persist iv + ciphertext to app-private storage
             val file = File(filesDir, "vrk.bin")
             file.writeBytes(iv + encrypted)
             result.success(true)
@@ -205,10 +314,6 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    /**
-     * Retrieve wrapped VRK with biometric-gated decryption.
-     * Returns VRK bytes or null if absent/failed.
-     */
     private fun retrieveVrk(result: MethodChannel.Result) {
         val file = File(filesDir, "vrk.bin")
         if (!file.exists()) {

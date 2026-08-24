@@ -145,7 +145,9 @@ class VaultCryptoV4 {
     try {
       final vrkDuress = Duress.deriveVrkDuress(mk);
       try {
-        return relock(
+        // MUST await: the finally block zeroes mk/vrkDuress only after relock
+        // completes. An unawaited future would wipe the key material mid-use.
+        return await relock(
           vrkDuress,
           entries,
           salt: salt,

@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'sodium_ffi.dart';
+import 'dart:io';
 
 // Intent: AES-256-GCM via libsodium crypto_aead_aes256gcm.
 // Used for: entry ciphertext, DEK wrapping, header MAC (v4 §4/§5).
@@ -40,7 +41,7 @@ class AesGcm {
   /// SECURITY: All native memory zeroed before freeing.
   static Uint8List encrypt(Uint8List key, Uint8List nonce, Uint8List aad, Uint8List pt) {
     _ensureInit();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final enc = lib.lookupFunction<EncryptNative, EncryptDart>('crypto_aead_aes256gcm_encrypt');
     final memzero = lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>('sodium_memzero');
 
@@ -94,8 +95,11 @@ class AesGcm {
   /// 
   /// SECURITY: All native memory (key, plaintext) zeroed before freeing.
   static Uint8List decrypt(Uint8List key, Uint8List nonce, Uint8List aad, Uint8List ct) {
+    // Fail-fast: ciphertext must carry at least the 16-byte GCM tag. Rejects
+    // malformed/truncated input BEFORE any native allocation (negative size).
+    if (ct.length < _ABYTES) throw StateError('AES-GCM ciphertext too short');
     _ensureInit();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final dec = lib.lookupFunction<DecryptNative, DecryptDart>('crypto_aead_aes256gcm_decrypt');
     final memzero = lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>('sodium_memzero');
 
@@ -149,7 +153,7 @@ class AesGcm {
     SodiumFfi.load().init();
     
     // CRITICAL: Verify hardware AES-NI support (fail-closed)
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final isAvailable = lib.lookupFunction<AesAvailableNative, AesAvailableDart>(
         'crypto_aead_aes256gcm_is_available')();
     

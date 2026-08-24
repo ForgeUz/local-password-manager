@@ -92,17 +92,17 @@ class VaultService implements Lockable {
     if (!await _storage.vaultExists()) {
       _store.dispatch(VaultMissing());
       return;
-    }
-    _currentBlob = await _storage.readBlob();
-    // Startup integrity gate: a vault.blob that is not a valid GEN4 header is
-    // either corrupted or a leftover from an old build. Route to the
-    // "corrupted/unreadable" screen instead of silently locking the user out.
-    if (_isValidV4Blob(_currentBlob!)) {
-      _store.dispatch(VaultLoaded(blob: _currentBlob!));
-    } else {
-      _store.dispatch(BlobCorruptDetected(blob: _currentBlob!));
-    }
   }
+  _currentBlob = await _storage.readBlob();
+  // Startup integrity gate: a vault.blob that is not a valid GEN4 header is
+  // either corrupted or a leftover from an old build. Route to the
+  // "corrupted/unreadable" screen instead of silently locking the user out.
+  if (_isValidV4Blob(_currentBlob!)) {
+    _store.dispatch(VaultLoaded(blob: _currentBlob!));
+  } else {
+    _store.dispatch(BlobCorruptDetected(blob: _currentBlob!));
+  }
+}
 
   // v5: byte-level GEN4 validation — magic + version + min length. A blob that
   // fails here could be trash, an old V3 file, or truncated (header parse would
@@ -167,6 +167,9 @@ class VaultService implements Lockable {
       final entries = VaultCryptoV4.decryptToEntries(blob, vrk);
       _vrk?.dispose();
       _vrk = SecureBuffer.fromList(vrk);
+      // Zero the caller's plaintext VRK copy now that it lives in native
+      // secure memory. Prevents the VRK lingering in Dart heap memory.
+      vrk.fillRange(0, vrk.length, 0);
       _blobSalt = V4Header.parse(blob).salt;
       _entries = entries;
       _isDuress = false;

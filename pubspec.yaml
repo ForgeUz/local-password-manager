@@ -15,7 +15,7 @@ dependencies:
   local_auth: ^2.2.0
   path_provider: ^2.1.1
   flutter_riverpod: ^2.4.9
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.4.0
   crypto: ^3.0.3
   base32: ^2.1.3
   pointycastle: ^3.7.3

@@ -38,7 +38,7 @@ A local-first password manager for Linux and Android. No cloud, no server, no te
 
 ## What's New in V6.5 (Mass-User Readiness)
 
-V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. All new code passes 70 additional tests (273 total).
+V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. The full suite is 240 tests, all passing.
 
 ### Security Tiers (Standard / Sensitive / Critical)
 
@@ -160,11 +160,18 @@ sudo apt update && sudo apt install -y \
   libx11-dev libxtst-dev libayatana-appindicator3-dev libportal-dev
 ```
 
-Run:
+Run (dev):
 
 ```bash
 flutter pub get
 flutter run -d linux
+```
+
+**Install as a desktop app** (builds release, installs to `/opt/vault_crypto`, creates a menu launcher + icon):
+
+```bash
+./install_linux.sh
+# Launch from the app menu ("Vault Crypto"), or run: /opt/vault_crypto/vault_crypto
 ```
 
 Release build with integrity hash:
@@ -172,6 +179,10 @@ Release build with integrity hash:
 ```bash
 ./build_linux.sh   # builds --release + writes build_hash.txt
 ```
+
+> **Note:** P2P BLE sync is **Android-only** (Nearby Connections). On Linux the
+> Sync screen shows a "not available" message; the rest of the app is fully
+> functional.
 
 ### Android (13+)
 
@@ -181,6 +192,15 @@ Install dependencies (see `android/DEPS.md`):
 sudo apt install openjdk-17-jdk
 # Install Android SDK, NDK, platform-tools
 # Set ANDROID_HOME, JAVA_HOME
+```
+
+**Bundle libsodium (required — Android has no system libsodium).** The Dart
+crypto layer loads `libsodium.so` via `dart:ffi`; it must be present in
+`android/app/src/main/jniLibs/<abi>/`. Prebuilt `.so` for `arm64-v8a` and
+`armeabi-v7a` are committed. To rebuild them from source (uses your NDK):
+
+```bash
+./build_android_sodium.sh
 ```
 
 Build APK:
@@ -207,13 +227,13 @@ adb install build/app/outputs/flutter-apk/app-release.apk
 ## Tests
 
 ```bash
-flutter test        # 273 tests (203 core + 70 V6.5 features)
-flutter analyze     # 0 errors, 2 warnings (pre-existing, non-critical)
+flutter test        # 240 tests (all pass)
+flutter analyze     # 0 errors (remaining items are pre-existing info/warnings)
 dart run tool/mutation_campaign.dart   # mutation kill score (100%, 51/51 applied)
 ```
 
 **Test coverage:**
-- 273 unit + integration tests
+- 240 unit + integration tests (all passing)
 - 51 mutations covering the entire Trusted Computing Base (TCB)
 - 100% mutation kill score (all security invariants verified)
 - RFC 6238 compliance tests for TOTP (SHA1/SHA256/SHA512)

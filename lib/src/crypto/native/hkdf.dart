@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'hmac_sha256.dart';
 import 'sodium_ffi.dart';
+import 'dart:io';
 
 // Intent: HKDF-SHA256 (RFC 5869). v5 E14 requires native
 // crypto_kdf_hkdf_sha256_* symbols. Symbol-probed at startup. In libsodium
@@ -41,7 +42,7 @@ class Hkdf {
 
   static bool _probe() {
     try {
-      final lib = DynamicLibrary.open('libsodium.so.23');
+      final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
       lib.lookupFunction<HkdfExtractNative, HkdfExtractDart>(
         'crypto_kdf_hkdf_sha256_extract',
       );
@@ -111,7 +112,7 @@ class Hkdf {
   /// SECURITY: All native memory zeroed before freeing.
   static Uint8List _deriveNative(Uint8List ikm, Uint8List salt, String info, int outLen) {
     SodiumFfi.load().init();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final extract = lib.lookupFunction<HkdfExtractNative, HkdfExtractDart>(
       'crypto_kdf_hkdf_sha256_extract',
     );

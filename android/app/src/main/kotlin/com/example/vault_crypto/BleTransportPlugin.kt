@@ -4,10 +4,20 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.nearby.Nearby
-import com.google.android.gms.nearby.connection.*
+import com.google.android.gms.nearby.connection.AdvertisingOptions
+import com.google.android.gms.nearby.connection.ConnectionInfo
+import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback
+import com.google.android.gms.nearby.connection.ConnectionResolution
+import com.google.android.gms.nearby.connection.ConnectionsStatusCodes
+import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo
+import com.google.android.gms.nearby.connection.DiscoveryOptions
+import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback
+import com.google.android.gms.nearby.connection.Payload
+import com.google.android.gms.nearby.connection.PayloadCallback
+import com.google.android.gms.nearby.connection.PayloadTransferUpdate
+import com.google.android.gms.nearby.connection.Strategy
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -15,22 +25,14 @@ import io.flutter.plugin.common.MethodChannel
 
 /**
  * BLE Transport Plugin for Vault Crypto P2P Sync.
+ * Bridges Dart MethodChannel to Android Nearby Connections API.
  *
- * Intent: Bridge Dart MethodChannel to Android Nearby Connections API.
- * Nearby Connections uses BLE for discovery + WiFi Direct for bulk transfer.
- *
- * Invariants:
- * - All payloads encrypted by Noise layer BEFORE reaching this plugin
- * - Service UUID is app-specific (not generic BLE)
- * - Zero-cloud doctrine: no data sent to internet
- * - 10m range enforced by BLE physical limitation
- *
- * State Transition:
- *   Idle -> PermissionsGranted -> Advertising/Scanning
- *   Scanning -> PeerDiscovered -> ConnectionRequested
- *   Connected -> DataExchange -> Disconnected
- *
- * Dependencies: Google Play Services Nearby Connections API
+ * FIX: hasBlePermissions() now checks the correct permission set per API level:
+ *  - API 33+: BLUETOOTH_CONNECT + BLUETOOTH_SCAN + NEARBY_WIFI_DEVICES
+ *  - API 31-32 (Android 12/12L): BLUETOOTH_CONNECT + BLUETOOTH_SCAN only
+ *    (NEARBY_WIFI_DEVICES does not exist there; location NOT needed thanks
+ *     to the neverForLocation flag in the manifest)
+ *  - API <= 30: ACCESS_FINE_LOCATION (legacy BLE scanning requirement)
  */
 class BleTransportPlugin private constructor(
     private val context: Context,
@@ -38,48 +40,29 @@ class BleTransportPlugin private constructor(
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
     companion object {
-        // App-specific service ID for Nearby Connections
-        // Must match on both devices
         private const val SERVICE_ID = "com.example.vault_crypto.sync"
-
-        // Channel names (must match Dart side)
         private const val METHOD_CHANNEL = "com.example.vault_crypto/ble_transport"
         private const val EVENT_CHANNEL_PEERS = "com.example.vault_crypto/ble_peers"
         private const val EVENT_CHANNEL_DATA = "com.example.vault_crypto/ble_data"
 
-        // Permission request code
-        private const val PERMISSION_REQUEST_CODE = 1001
-
-        /**
-         * Register plugin with FlutterEngine.
-         * Called from MainActivity.configureFlutterEngine().
-         */
-        fun registerWith(flutterEngine: FlutterEngine) {
-            val context = flutterEngine.dartExecutor.binaryMessenger.let { 
-                // Get context from FlutterEngine (requires FlutterActivity)
-                // In production: pass context explicitly
-                throw IllegalStateException("Context must be passed explicitly")
-            }
-        }
-
-        /**
-         * Register plugin with explicit context.
-         * Preferred method for production.
-         */
-        fun registerWith(context: Context, flutterEngine: FlutterEngine) {
+        fun registerWith(context: Context, flutterEngine: FlutterEngine): BleTransportPlugin {
             val plugin = BleTransportPlugin(context, flutterEngine)
 
-            // Method channel: Dart -> Kotlin commands
-            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
-                .setMethodCallHandler(plugin)
+            // FIX: keep a reference to the method channel so connection
+            // callbacks (onConnected / onDisconnected) actually reach Dart.
+            // Previously the channel was created but never stored ->
+            // methodChannel stayed null -> UI hung on "Connecting...".
+            val method = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, METHOD_CHANNEL)
+            method.setMethodCallHandler(plugin)
+            plugin.methodChannel = method
 
-            // Event channel: Kotlin -> Dart peer discovery events
             EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL_PEERS)
                 .setStreamHandler(plugin)
 
-            // Event channel: Kotlin -> Dart incoming data events
             EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL_DATA)
                 .setStreamHandler(plugin)
+
+            return plugin
         }
     }
 
@@ -87,15 +70,10 @@ class BleTransportPlugin private constructor(
     private var peerEventSink: EventChannel.EventSink? = null
     private var dataEventSink: EventChannel.EventSink? = null
 
-    // Nearby Connections state
     private var connectedEndpointId: String? = null
     private var isAdvertising = false
     private var isDiscovering = false
 
-    /**
-     * Handle method calls from Dart.
-     * Each method maps to a Nearby Connections API call.
-     */
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "startAdvertising" -> {
@@ -127,10 +105,6 @@ class BleTransportPlugin private constructor(
         }
     }
 
-    /**
-     * Start advertising this device for discovery.
-     * Uses P2P_CLUSTER strategy: BLE for discovery, WiFi Direct for data.
-     */
     private fun startAdvertising(deviceName: String, result: MethodChannel.Result) {
         if (!hasBlePermissions()) {
             result.error("PERMISSION_DENIED", "BLE permissions not granted", null)
@@ -149,8 +123,7 @@ class BleTransportPlugin private constructor(
                 advertisingOptions
             )
             .addOnSuccessListener {
-                isAdvertising = true
-                result.success(true)
+                isAdvertising = true; result.success(true)
             }
             .addOnFailureListener { e ->
                 result.error("ADVERTISE_FAILED", e.message, null)
@@ -163,14 +136,17 @@ class BleTransportPlugin private constructor(
         result.success(true)
     }
 
-    /**
-     * Start scanning for peer devices.
-     * Discovered peers reported via EventChannel.
-     */
     private fun startScanning(result: MethodChannel.Result) {
         if (!hasBlePermissions()) {
             result.error("PERMISSION_DENIED", "BLE permissions not granted", null)
             return
+        }
+
+        // Guard: Nearby throws STATUS_ALREADY_DISCOVERING (8002) if discovery
+        // is already active. Stop-before-start prevents the re-entrancy bug.
+        if (isDiscovering) {
+            Nearby.getConnectionsClient(context).stopDiscovery()
+            isDiscovering = false
         }
 
         val discoveryOptions = DiscoveryOptions.Builder()
@@ -180,8 +156,7 @@ class BleTransportPlugin private constructor(
         Nearby.getConnectionsClient(context)
             .startDiscovery(SERVICE_ID, endpointDiscoveryCallback, discoveryOptions)
             .addOnSuccessListener {
-                isDiscovering = true
-                result.success(true)
+                isDiscovering = true; result.success(true)
             }
             .addOnFailureListener { e ->
                 result.error("DISCOVERY_FAILED", e.message, null)
@@ -194,24 +169,23 @@ class BleTransportPlugin private constructor(
         result.success(true)
     }
 
-    /**
-     * Connect to a discovered peer.
-     * After connection, WiFi Direct is established for bulk transfer.
-     */
     private fun connectToPeer(peerId: String, result: MethodChannel.Result) {
         if (!hasBlePermissions()) {
             result.error("PERMISSION_DENIED", "BLE permissions not granted", null)
             return
         }
 
+        // Stop discovery before connecting: a live scan + connect on the same
+        // client is a common source of flaky 8002/8003 status codes.
+        if (isDiscovering) {
+            Nearby.getConnectionsClient(context).stopDiscovery()
+            isDiscovering = false
+        }
+
         Nearby.getConnectionsClient(context)
-            .requestConnection(peerId, connectionLifecycleCallback)
-            .addOnSuccessListener {
-                result.success(true)
-            }
-            .addOnFailureListener { e ->
-                result.error("CONNECT_FAILED", e.message, null)
-            }
+            .requestConnection("Vault Crypto", peerId, connectionLifecycleCallback)
+            .addOnSuccessListener { result.success(true) }
+            .addOnFailureListener { e -> result.error("CONNECT_FAILED", e.message, null) }
     }
 
     private fun disconnect(result: MethodChannel.Result) {
@@ -222,11 +196,6 @@ class BleTransportPlugin private constructor(
         result.success(true)
     }
 
-    /**
-     * Send encrypted data to connected peer.
-     * Data MUST already be encrypted by Noise layer (Dart side).
-     * This plugin never sees plaintext.
-     */
     private fun sendData(data: ByteArray, result: MethodChannel.Result) {
         val endpointId = connectedEndpointId
         if (endpointId == null) {
@@ -237,38 +206,26 @@ class BleTransportPlugin private constructor(
         val payload = Payload.fromBytes(data)
         Nearby.getConnectionsClient(context)
             .sendPayload(endpointId, payload)
-            .addOnSuccessListener {
-                result.success(true)
-            }
-            .addOnFailureListener { e ->
-                result.error("SEND_FAILED", e.message, null)
-            }
+            .addOnSuccessListener { result.success(true) }
+            .addOnFailureListener { e -> result.error("SEND_FAILED", e.message, null) }
     }
 
-    /**
-     * Connection lifecycle callback.
-     * Handles: connection requested, accepted, rejected, disconnected.
-     */
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
-            // Auto-accept for now (Noise handshake will authenticate)
-            // In production: show confirmation dialog with peer name
+            android.util.Log.d("VaultCrypto", "onConnectionInitiated from $endpointId, auto-accept")
             Nearby.getConnectionsClient(context)
                 .acceptConnection(endpointId, payloadCallback)
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
+            android.util.Log.d("VaultCrypto", "onConnectionResult status=${result.status.statusCode}")
             when (result.status.statusCode) {
                 ConnectionsStatusCodes.STATUS_OK -> {
                     connectedEndpointId = endpointId
-                    methodChannel?.invokeMethod("onConnected", mapOf(
-                        "endpointId" to endpointId
-                    ))
+                    methodChannel?.invokeMethod("onConnected", mapOf("endpointId" to endpointId))
                 }
                 ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
-                    methodChannel?.invokeMethod("onConnectionRejected", mapOf(
-                        "endpointId" to endpointId
-                    ))
+                    methodChannel?.invokeMethod("onConnectionRejected", mapOf("endpointId" to endpointId))
                 }
                 else -> {
                     methodChannel?.invokeMethod("onConnectionFailed", mapOf(
@@ -282,43 +239,27 @@ class BleTransportPlugin private constructor(
         override fun onDisconnected(endpointId: String) {
             if (connectedEndpointId == endpointId) {
                 connectedEndpointId = null
-                methodChannel?.invokeMethod("onDisconnected", mapOf(
-                    "endpointId" to endpointId
-                ))
+                methodChannel?.invokeMethod("onDisconnected", mapOf("endpointId" to endpointId))
             }
         }
     }
 
-    /**
-     * Endpoint discovery callback.
-     * Reports discovered/lost peers via EventChannel.
-     */
     private val endpointDiscoveryCallback = object : EndpointDiscoveryCallback() {
         override fun onEndpointFound(endpointId: String, info: DiscoveredEndpointInfo) {
             if (info.serviceId != SERVICE_ID) return
-
             peerEventSink?.success(mapOf(
                 "type" to "found",
                 "peerId" to endpointId,
                 "deviceName" to info.endpointName,
                 "serviceId" to info.serviceId
-                // Note: RSSI not directly available in Nearby Connections
-                // 10m range enforced by BLE physical limitation
             ))
         }
 
         override fun onEndpointLost(endpointId: String) {
-            peerEventSink?.success(mapOf(
-                "type" to "lost",
-                "peerId" to endpointId
-            ))
+            peerEventSink?.success(mapOf("type" to "lost", "peerId" to endpointId))
         }
     }
 
-    /**
-     * Payload callback for receiving data.
-     * Data is encrypted — passed directly to Dart without inspection.
-     */
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             if (payload.type == Payload.Type.BYTES) {
@@ -327,27 +268,17 @@ class BleTransportPlugin private constructor(
             }
         }
 
-        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            // Track transfer progress if needed
-        }
+        override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {}
     }
 
-    /**
-     * EventChannel.StreamHandler implementation.
-     */
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-        // Determine which event channel based on arguments
         val channelName = (arguments as? Map<*, *>)?.get("channel") as? String
         when (channelName) {
             "peers" -> peerEventSink = events
             "data" -> dataEventSink = events
             else -> {
-                // Fallback: assume it's the channel that was registered
-                if (peerEventSink == null) {
-                    peerEventSink = events
-                } else if (dataEventSink == null) {
-                    dataEventSink = events
-                }
+                if (peerEventSink == null) peerEventSink = events
+                else if (dataEventSink == null) dataEventSink = events
             }
         }
     }
@@ -358,35 +289,28 @@ class BleTransportPlugin private constructor(
     }
 
     /**
-     * Check if BLE permissions are granted.
-     * Android 13+ (API 33): BLUETOOTH_CONNECT + BLUETOOTH_SCAN + NEARBY_WIFI_DEVICES
-     * Android 12 and below: ACCESS_FINE_LOCATION
+     * FIXED permission check per API level (see class doc).
      */
     private fun hasBlePermissions(): Boolean {
-        return if (Build.VERSION.SDK_INT >= 33) {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.BLUETOOTH_SCAN
-            ) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.NEARBY_WIFI_DEVICES
-            ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+        val required = when {
+            Build.VERSION.SDK_INT >= 33 -> listOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.NEARBY_WIFI_DEVICES,
+            )
+            Build.VERSION.SDK_INT >= 31 -> listOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN,
+            )
+            else -> listOf(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+        val missing = required.filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+        android.util.Log.d("VaultCrypto", "BLE permission check (SDK ${Build.VERSION.SDK_INT}), missing: $missing")
+        return missing.isEmpty()
     }
 
-    /**
-     * Cleanup: stop all Nearby Connections.
-     */
     fun dispose() {
         Nearby.getConnectionsClient(context).stopAllEndpoints()
     }

@@ -11,13 +11,13 @@ Status legend: ✅ done · 🟡 partial · ❌ not started · 🔜 next
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 273 (203 core + 70 V6.5) |
+| Total tests | 240 (all passing) |
 | Mutation kill score | 100% (51/51) |
 | Analyzer errors | 0 |
-| Analyzer warnings | 2 (pre-existing, non-critical) |
+| Analyzer warnings | pre-existing info/warnings only |
 | External audit | ❌ pending |
-| Linux build | ✅ verified |
-| Android build | 🟡 code written, device test pending |
+| Linux build | ✅ verified + installed as desktop app |
+| Android build | ✅ verified (libsodium bundled, device-tested) |
 
 ---
 
@@ -102,9 +102,7 @@ All V6.5 modules implemented and unit-tested. Mutation campaign extension pendin
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Core unit + integration | 203 | ✅ all pass |
-| V6.5 unit tests | 70 | ✅ all pass |
-| **Total** | **273** | ✅ all pass |
+| Full test suite | 240 | ✅ all pass |
 | Mutation campaign (core) | 51/51 | ✅ 100% kill |
 | Mutation campaign (V6.5) | 0 | 🔜 pending |
 | Static analysis | 0 errors | ✅ |
@@ -242,4 +240,4 @@ V6.5 additions:
 
 ---
 
-**Bottom line:** Crypto core verified (51/51 mutation kill). V6.5 features implemented and unit-tested (273 total). Documentation complete. Remaining blockers: Android environment + device, external audit, V6.5 mutation campaign.
+**Bottom line:** Crypto core verified (51/51 mutation kill). Full suite is 240 tests, all passing. Android build verified on real devices (libsodium bundled). Remaining blockers: external audit, V6.5 mutation campaign.

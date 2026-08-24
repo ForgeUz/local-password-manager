@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'sodium_ffi.dart';
+import 'dart:io';
 
 // Intent: Constant-time byte comparison via libsodium sodium_compare.
 // Invariants: returns true iff equal; runtime independent of content.
@@ -16,7 +17,7 @@ class ConstantTime {
   static bool equals(Uint8List a, Uint8List b) {
     if (a.length != b.length) return false;
     _ensureInit();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final sodiumCompare = lib.lookupFunction<SodiumCompareNative, SodiumCompareDart>(
       'sodium_compare',
     );

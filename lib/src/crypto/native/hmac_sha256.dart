@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'sodium_ffi.dart';
+import 'dart:io';
 
 // Intent: HMAC-SHA256 via libsodium crypto_auth_hmacsha256.
 // Used for: search_tag (v4 §5.1), HKDF inner HMAC, TOTP (v3 §12).
@@ -19,7 +20,7 @@ class HmacSha256 {
   static Uint8List compute(Uint8List key, Uint8List data) {
     if (key.length != _KEYBYTES) throw StateError('HMAC key must be 32 bytes');
     _ensureInit();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final hmac = lib.lookupFunction<HmacNative, HmacDart>('crypto_auth_hmacsha256');
 
     final out = calloc.allocate<Uint8>(_BYTES);

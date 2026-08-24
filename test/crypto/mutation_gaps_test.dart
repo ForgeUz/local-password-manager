@@ -121,8 +121,8 @@ void main() {
       final mk = await Argon2id.derive(
         password,
         salt,
-        memory: 64,
-        iterations: 1,
+        memory: 8192, // libsodium Argon2id minimum (8 MiB)
+        iterations: 3, // libsodium Argon2id minimum opslimit
         parallelism: 1,
       );
       

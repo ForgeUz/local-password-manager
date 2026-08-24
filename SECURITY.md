@@ -10,10 +10,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 273 (203 core + 70 V6.5) |
+| Total tests | 240 (all passing) |
 | Mutation kill score | 100% (51/51 TCB mutations) |
 | Analyzer errors | 0 |
-| Analyzer warnings | 2 (pre-existing, non-critical) |
+| Analyzer warnings | pre-existing info/warnings only |
 | External audit | Pending (recruiting) |
 | Known vulnerabilities | 0 |
 

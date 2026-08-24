@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../native/argon2id.dart';
 import '../native/constant_time.dart';
 import 'totp.dart';
+import 'dart:io';
 
 // Intent: TOTP 2FA setup + backup codes (v3 §12.7 / Phase H.1/H).
 // Generates a 160-bit seed (RFC 4226), encodes as Base32 for QR display, and

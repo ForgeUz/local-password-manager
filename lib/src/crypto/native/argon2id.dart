@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'sodium_ffi.dart';
+import 'dart:io';
 
 // Intent: Argon2id via libsodium crypto_pwhash.
 // Used for: MK derivation (v2 §2, v3 §19, v4 §5.3).
@@ -33,7 +34,7 @@ class Argon2id {
   static Uint8List derive(Uint8List password, Uint8List salt,
       {required int memory, required int iterations, required int parallelism}) {
     _ensureInit();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final pwhash = lib.lookupFunction<PwhashNative, PwhashDart>('crypto_pwhash');
     final memzero = lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>('sodium_memzero');
 

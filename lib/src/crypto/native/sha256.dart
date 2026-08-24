@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'sodium_ffi.dart';
+import 'dart:io';
 
 // Intent: SHA-256 via libsodium crypto_hash_sha256.
 // Used for: time-lock hash chain (v4 §5.2), integrity heartbeat (v3 §21.4).
@@ -17,7 +18,7 @@ class Sha256 {
 
   static Uint8List hash(Uint8List data) {
     _ensureInit();
-    final lib = DynamicLibrary.open('libsodium.so.23');
+    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final hash = lib.lookupFunction<HashNative, HashDart>('crypto_hash_sha256');
     final out = calloc.allocate<Uint8>(_BYTES);
     final dataPtr = calloc.allocate<Uint8>(data.length);

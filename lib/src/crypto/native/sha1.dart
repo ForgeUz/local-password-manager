@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:io';
 
 // Intent: SHA-1 (FIPS 180-1) for HIBP k-anonymity interop (v5 E8). HIBP Pwned
 // Passwords keys on SHA-1 prefixes; libsodium 1.0.18 does not export

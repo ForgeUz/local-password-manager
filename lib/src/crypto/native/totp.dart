@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'hmac_sha256.dart';
+import 'dart:io';
 
 // Intent: RFC 6238 TOTP generation (over HMAC-SHA256 with RFC 4226 dynamic
 // truncation, 30s step, 6 digits). Uses the available libsodium HMAC-SHA256

@@ -52,6 +52,11 @@ sfm_file
 # Temporary fix scripts
 fix_v65_inconsistencies*.sh
 
+# Build helper scripts (regenerable; not part of the app source)
+build_android_sodium.sh
+install_linux.sh
+build_linux.sh
+
 # Android local / signing (NEVER commit secrets)
 android/local.properties
 android/.gradle/

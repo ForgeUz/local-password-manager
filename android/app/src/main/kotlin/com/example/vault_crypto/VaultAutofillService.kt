@@ -1,24 +1,3 @@
-// Intent: Android Autofill Service bridging Android Autofill Framework to
-// the Flutter vault. Extracts requesting domain, performs lookalike/domain
-// checks, delegates tier decision to Dart via MethodChannel, returns
-// FillResponse with credentials or blocks.
-//
-// Invariants:
-// - Credential plaintext NEVER logged, NEVER persisted outside vault
-// - Domain extracted from AssistStructure, not from untrusted extras
-// - Critical tier -> no autofill dataset offered (manual only)
-// - Lookalike / domain mismatch -> return null FillResponse (hard stop)
-// - Vault must be unlocked (biometric/master) BEFORE credentials released
-//
-// State Transition:
-//   onFillRequest(structure) -> extractDomain -> launch Flutter for auth
-//     -> auth success -> build FillResponse -> onSuccess(response)
-//     -> auth fail / tier block -> onSuccess(null)
-//   onSaveRequest -> save new/updated credential to vault
-//
-// Dependencies: Android Autofill Framework, MainActivity (Flutter auth),
-//   TierAutofillEnforcer (Dart, via MethodChannel)
-
 package com.example.vault_crypto
 
 import android.app.assist.AssistStructure
@@ -81,6 +60,9 @@ class VaultAutofillService : AutofillService() {
         val isPasswordField: Boolean
     )
 
+    /**
+     * Called by Android when an app requests autofill.
+     */
     override fun onFillRequest(
         request: FillRequest,
         cancellationSignal: CancellationSignal,
@@ -193,12 +175,15 @@ class VaultAutofillService : AutofillService() {
 
         builder.addDataset(datasetBuilder.build())
 
-        // Declare which autofill hints we support (so Android routes to us)
-        builder.setIgnoredIds(emptyList())
+        // Note: setIgnoredIds accepts vararg AutofillId. Since we don't need to 
+        // ignore any specific IDs, we can simply omit calling this method.
 
         return builder.build()
     }
 
+    /**
+     * Called by Android when an app wants to save updated credentials.
+     */
     override fun onSaveRequest(request: SaveRequest, callback: SaveCallback) {
         // Saving new/updated credentials back to the vault.
         // Launch MainActivity to confirm + encrypt + store.
@@ -257,12 +242,15 @@ class VaultAutofillService : AutofillService() {
                 val isPassword = isPasswordField(node)
 
                 // Only track fields that Android marked autofillable
+                // We use hardcoded strings for "newUsername" and "newPassword" because
+                // View.AUTOFILL_HINT_NEW_USERNAME was added in API 26/28 and might cause
+                // unresolved reference errors depending on compile SDK and import context.
                 val relevant = hints.any {
                     it == android.view.View.AUTOFILL_HINT_USERNAME ||
                     it == android.view.View.AUTOFILL_HINT_PASSWORD ||
                     it == android.view.View.AUTOFILL_HINT_EMAIL_ADDRESS ||
-                    it == android.view.View.AUTOFILL_HINT_NEW_USERNAME ||
-                    it == android.view.View.AUTOFILL_HINT_NEW_PASSWORD
+                    it == "newUsername" ||
+                    it == "newPassword"
                 }
 
                 if (relevant) {
