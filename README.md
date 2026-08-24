@@ -298,7 +298,5 @@ See `SECURITY_AUDIT.md` for internal audit results and hardening applied.
 
 ## Links
 
-- **GitHub:** https://github.com/ForgeUz/local-password-manager
-- **Issues:** https://github.com/ForgeUz/local-password-manager/issues
 - **Security:** See `SECURITY.md`
 - **Audit Brief:** See `AUDIT_BRIEF_V65.md`
