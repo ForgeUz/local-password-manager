@@ -43,11 +43,19 @@ v6.5_delta.md
 vault.decoy
 sfm_file
 
+# Logs (verification output)
 *.log
+
+# Backup files
 *.backup
+
+# Temporary fix scripts
 fix_v65_inconsistencies*.sh
+
+# Android local / signing (NEVER commit secrets)
 android/local.properties
+android/.gradle/
+android/captures/
+android/key.properties
 *.keystore
 *.jks
-key.properties
-
