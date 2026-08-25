@@ -215,6 +215,12 @@ Install on device:
 adb install build/app/outputs/flutter-apk/app-release.apk
 ```
 
+Update on device:
+
+```bash
+adb install -r build/app/outputs/flutter-apk/app-release.apk
+```
+
 **First-run setup:**
 1. Enable Autofill Service: Settings -> System -> Languages & input -> Autofill service -> Vault Crypto
 2. Grant permissions: Biometric, Bluetooth, Camera (for TOTP QR import)
