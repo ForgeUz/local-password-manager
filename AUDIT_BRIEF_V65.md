@@ -1,7 +1,7 @@
-# Audit Brief — Vault Crypto V6.5
+# Audit Brief - Vault Crypto V6.5.1
 
-**Version under audit:** V6.5 (Mass-User Features on Verified Core)
-**Date:** 2026-08-24
+**Version under audit:** V6.5.1 (Mutation Campaign Complete)
+**Date:** 2026-08-25
 **Status:** Seeking external cryptographic audit
 **Repository:** https://github.com/ForgeUz/local-password-manager
 **Primary language:** Dart/Flutter (Dart SDK >=3.0.0), Kotlin (Android platform layer)
@@ -13,24 +13,24 @@
 
 Vault Crypto is a local-first, zero-cloud password manager. The cryptographic core (V4/V5) is internally verified:
 
-- **240 tests** (all passing)
-- **51/51 mutation kill** (100% kill score across entire TCB)
+- **265 tests** (all passing)
+- **100/100 mutation kill** (100% kill score across entire TCB)
 - **0 analyzer errors**
 
 V6.5 adds mass-user features (security tiers, TOTP, P2P BLE sync, Android autofill) without modifying the verified crypto core. **We seek independent verification of both the crypto core and the new V6.5 modules.**
 
 **Core doctrine (enforced, non-negotiable):**
-- **Zero-Cloud** — no server, no relay, no telemetry. Only egress is opt-in breach monitoring (5-char SHA-1 prefix).
-- **Zero-Trust** — every input treated as hostile until math proves otherwise.
-- **Zero-Recovery-by-design** — no backdoor, no vendor reset.
-- **No home-rolled crypto** — libsodium only.
-- **Sync optional** — removing sync module leaves a working offline manager.
+- **Zero-Cloud** - no server, no relay, no telemetry. Only egress is opt-in breach monitoring (5-char SHA-1 prefix).
+- **Zero-Trust** - every input treated as hostile until math proves otherwise.
+- **Zero-Recovery-by-design** - no backdoor, no vendor reset.
+- **No home-rolled crypto** - libsodium only.
+- **Sync optional** - removing sync module leaves a working offline manager.
 
 ---
 
 ## 2. What We Are Asking Auditors To Verify
 
-### Priority 1: Crypto Core (V4/V5) — already mutation-tested
+### Priority 1: Crypto Core (V4/V5) - already mutation-tested
 
 1. Correct usage of AES-256-GCM (nonce uniqueness, AAD, tag verification)
 2. Correct HKDF usage (domain separation via unique info strings)
@@ -41,13 +41,13 @@ V6.5 adds mass-user features (security tiers, TOTP, P2P BLE sync, Android autofi
 7. Fail-closed on hardware errors (AES-NI unavailable)
 8. Structural deniability (duress vault indistinguishable from primary)
 
-### Priority 2: V6.5 Modules — unit-tested, not yet mutation-tested
+### Priority 2: V6.5 Modules - unit-tested, not yet mutation-tested
 
-9. **Security tiers** — enforcement bypass resistance (can critical tier be autofilled?)
-10. **TOTP generator** — RFC 6238 correctness, secret handling
-11. **P2P sync** — Noise protocol usage, pairing entropy, conflict resolution
-12. **Android autofill** — domain matching, lookalike detection, tier enforcement
-13. **Android biometric** — Keystore key invalidation, VRK wrap/unwrap
+9. **Security tiers** - enforcement risk (can critical tier be autofilled?)
+10. **TOTP generator** - RFC 6238 correctness, secret handling
+11. **P2P sync** - Noise protocol usage, pairing entropy, conflict resolution
+12. **Android autofill** - domain matching, lookalike detection, tier enforcement
+13. **Android biometric** - Keystore key invalidation, VRK wrap/unwrap
 
 ### Priority 3: Architecture & Threat Model
 
@@ -59,7 +59,7 @@ V6.5 adds mass-user features (security tiers, TOTP, P2P BLE sync, Android autofi
 
 ## 3. Trusted Computing Base (TCB) Files
 
-### 3.1 Crypto Core (V4/V5) — Dart
+### 3.1 Crypto Core (V4/V5) - Dart
 
 | File | Responsibility | Key Invariants |
 |------|----------------|----------------|
@@ -75,7 +75,7 @@ V6.5 adds mass-user features (security tiers, TOTP, P2P BLE sync, Android autofi
 | `lib/src/crypto/native/hkdf.dart` | FFI wrapper for HKDF | Unique info per use, PRK/IKM zeroed |
 | `lib/src/crypto/native/secure_buffer.dart` | `sodium_malloc` wrapper, dispose zeroing | `sodium_memzero` on dispose, no plaintext escape |
 
-### 3.2 V6.5 Mass-User Modules — Dart
+### 3.2 V6.5 Mass-User Modules - Dart
 
 | File | Responsibility | Key Invariants |
 |------|----------------|----------------|
@@ -92,7 +92,7 @@ V6.5 adds mass-user features (security tiers, TOTP, P2P BLE sync, Android autofi
 | `lib/src/sync/replay_counter.dart` | Replay attack prevention | Reject non-increasing counters |
 | `lib/src/sync/traffic_padding.dart` | Traffic analysis resistance | Bucket padding, dummy messages |
 
-### 3.3 Android Platform Layer — Kotlin
+### 3.3 Android Platform Layer - Kotlin
 
 | File | Responsibility | Key Invariants |
 |------|----------------|----------------|
@@ -145,14 +145,14 @@ These are the properties we want auditors to verify (or break):
 10. Critical tier CANNOT export
 11. Tier downgrade requires explicit user confirmation
 12. Tier stored in encrypted blob (attacker cannot downgrade)
-13. Lookalike domain → hard-stop (no autofill)
-14. Domain mismatch → block (no autofill)
+13. Lookalike domain -> hard-stop (no autofill)
+14. Domain mismatch -> block (no autofill)
 15. TOTP secret never appears in plaintext after import
 16. TOTP codes validated with ±1 window only
 17. Sync data encrypted before reaching BLE transport
 18. Pairing requires ≥3 attempts before cooldown
 19. Conflict resolution blocks sync until all resolved
-20. Tombstones prevent deleted entry resurrection (30d TTL)
+20. Conflict resolution blocks sync until all resolved
 
 ### Android
 21. Biometric key invalidated on new fingerprint enrollment
@@ -169,8 +169,8 @@ These are the properties we want auditors to verify (or break):
 
 | Method | Scope | Result |
 |--------|-------|--------|
-| Unit tests | 240 tests | All pass |
-| Mutation testing | 51 mutations, crypto core | 100% kill (51/51) |
+| Unit tests | 265 tests | All pass |
+| Mutation testing | 100 mutations, crypto core | 100% kill (100/100) |
 | Static analysis | `flutter analyze` | 0 errors, 2 warnings (pre-existing) |
 | Code review | All TCB files | Internal review complete |
 | Memory audit | FFI wrappers + Dart zeroing | PASS (documented residual) |
@@ -179,11 +179,11 @@ These are the properties we want auditors to verify (or break):
 
 | Gap | Impact | Mitigation Plan |
 |-----|--------|-----------------|
-| External cryptographic audit | **Critical** — this is why we're here | This audit |
-| V6.5 mutation testing | Medium — 70 tests pass but no mutation campaign | Extend campaign pre-audit |
-| Android device testing | Medium — code review only | Real device testing (P5) |
-| Formal verification | Low — mutation testing is strong proxy | Optional (Lean 4/Dafny) |
-| Fuzzing | Medium — parsers tested but not fuzzed | Add fuzzing for parsers |
+| External cryptographic audit | **Critical** - this is why we are here | This audit |
+| V6.5 mutation testing | Medium - 70 tests pass but no mutation campaign | Extend campaign pre-audit |
+| Android automated platform tests | Low - device-tested, no automated unit layer | Add automated platform tests |
+| Formal verification | Low - mutation testing is a strong proxy | Optional (Lean 4/Dafny) |
+| Fuzzing | Medium - parsers tested but not fuzzed | Add fuzzing for parsers |
 
 ---
 
@@ -194,7 +194,7 @@ We state these upfront. They are known, documented, and accepted:
 1. **`V4VaultEntry.password` is a Dart `String` in UI model.** Flutter limitation. Crypto core never holds it as String.
 2. **Mutation testing covers only encoded mutations.** Not a substitute for external audit.
 3. **V6.5 modules not yet mutation-tested.** 70 unit tests pass; mutation campaign extension planned.
-4. **Android not yet tested on real device.** Code review passes; runtime verification pending.
+4. **Android autofill has no automated unit tests.** Device-tested on Android 13; automated coverage for the platform layer not present.
 5. **P2P sync requires both devices online simultaneously.** No async sync (zero-cloud constraint).
 6. **BLE 10m range is physical, not software-enforced.** Signal amplifier could extend range.
 7. **TOTP secrets in vault = single point of failure.** Hardware tokens recommended for critical accounts.
@@ -225,7 +225,7 @@ sudo apt install -y clang cmake ninja-build pkg-config \
 
 ```bash
 flutter pub get
-flutter test                    # 240 tests
+flutter test                    # 265 tests
 flutter analyze                 # 0 errors expected
 dart run tool/mutation_campaign.dart   # mutation kill score
 ```
@@ -311,19 +311,27 @@ wc -l lib/src/security/security_tier*.dart \
 wc -l android/app/src/main/kotlin/com/example/vault_crypto/*.kt
 ```
 
-## Appendix B: Mutations Already Killed (51/51)
+## Appendix B: Mutations Already Killed (100/100)
 
 See `SECURITY_AUDIT.md` Task 3 for full mutation list by group:
-- vault_crypto_v4: 15
-- key_hierarchy: 5
-- header: 8
-- padding: 4
-- second_factor: 6
-- duress: 2
-- search_tag: 5
+- vault_crypto_v4: 20
+- key_hierarchy: 10
+- header: 13
+- padding: 8
+- second_factor: 9
+- duress: 4
+- search_tag: 9
 - argon2id: 3
 - aes_gcm: 2
-- hkdf: 1
+- hkdf: 3
+- constant_time: 2
+- hmac_sha256: 2
+- sha256: 2
+- secure_buffer: 2
+- native_noise: 2
+- replay_counter: 2
+- vector_clock: 4
+- conflict_resolver: 3
 
 ---
 

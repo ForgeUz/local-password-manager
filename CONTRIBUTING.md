@@ -8,11 +8,11 @@ Thank you for considering contributing to Vault Crypto. This project has strict 
 
 Vault Crypto is a **zero-cloud, zero-trust, zero-recovery** password manager. Every contribution must respect this:
 
-- **Zero-Cloud** — no network egress except opt-in breach monitoring (5-char SHA-1 prefix). Do not add cloud features.
-- **Zero-Trust** — treat all input as hostile. Validate at boundaries, fail closed.
-- **Zero-Recovery-by-design** — no backdoors, no vendor reset, no recovery that weakens security.
-- **No home-rolled crypto** — use libsodium via FFI only. Never implement primitives.
-- **Sync optional** — removing sync must leave a working offline manager.
+- **Zero-Cloud** - no network egress except opt-in breach monitoring (5-char SHA-1 prefix). Do not add cloud features.
+- **Zero-Trust** - treat all input as hostile. Validate at boundaries, fail closed.
+- **Zero-Recovery-by-design** - no backdoors, no vendor reset, no recovery that weakens security.
+- **No home-rolled crypto** - use libsodium via FFI only. Never implement primitives.
+- **Sync optional** - removing sync must leave a working offline manager.
 
 If your contribution violates any doctrine, it will be rejected. Discuss design changes via issue first.
 
@@ -31,7 +31,7 @@ This project follows strict engineering rules. Contributors must comply.
 
 ### 2.2 Test-Driven Development (TDD)
 
-- Write ONE test → write ONE minimal implementation to pass it.
+- Write ONE test -> write ONE minimal implementation to pass it.
 - Red-Green-Refactor loop.
 - Do not write all tests then all code (no horizontal slices).
 - Write only minimal code to pass the current test. No speculative features.
@@ -40,9 +40,9 @@ This project follows strict engineering rules. Contributors must comply.
 
 No code is complete until it passes, in order:
 
-1. **Type checker** — `flutter analyze` (0 errors)
-2. **Unit tests** — `flutter test`
-3. **Mutation tests** — for crypto/security logic, mutation score must stay at 100%
+1. **Type checker** - `flutter analyze` (0 errors)
+2. **Unit tests** - `flutter test`
+3. **Mutation tests** - for crypto/security logic, mutation score must stay at 100%
 
 Run before submitting:
 
@@ -137,7 +137,7 @@ test/                   # Tests, mirrors lib/ structure
 tool/                   # Mutation campaign, build scripts
 ```
 
-Tests mirror `lib/` structure: `lib/src/totp/totp_generator.dart` → `test/totp/totp_generator_test.dart`.
+Tests mirror `lib/` structure: `lib/src/totp/totp_generator.dart` -> `test/totp/totp_generator_test.dart`.
 
 ---
 

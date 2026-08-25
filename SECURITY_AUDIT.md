@@ -1,10 +1,10 @@
-# Security Audit — Native Memory + Clipboard Sensitive MIME + Mutation Testing (v1.0 pre-release)
+# Security Audit - Native Memory + Clipboard Sensitive MIME + Mutation Testing (v1.0 pre-release)
 
-**Date:** 2026-08-24 · **Scope:** Dart/Flutter GC overhead + Linux clipboard sensitive MIME + Extended mutation campaign.
+**Date:** 2026-08-25 **Scope:** Dart/Flutter GC overhead + Linux clipboard sensitive MIME + Extended mutation campaign.
 
 ---
 
-## Task 1 — Native Memory Audit (Dart GC / secret handling)
+## Task 1 - Native Memory Audit (Dart GC / secret handling)
 
 ### What was checked
 
@@ -12,10 +12,10 @@ All code paths involving unencrypted secrets, DEKs, and the Master Password:
 
 | Secret | Path | Handling | Verdict |
 |--------|------|----------|---------|
-| Master Password | UI input → `SecureBuffer.alloc` + `writeBytes` (lock/setup/decoy/settings/corrupt screens) | Native `sodium_malloc` | PASS |
+| Master Password | UI input -> `SecureBuffer.alloc` + `writeBytes` (lock/setup/decoy/settings/corrupt screens) | Native `sodium_malloc` | PASS |
 | MK (Argon2id output) | `Argon2id.derive` returns `Uint8List` (FFI `calloc`), consumed immediately by HKDF | Native FFI | PASS |
 | VRK | `SecureBuffer.fromList` (`sodium_malloc`), held in `_vrk`, wiped on lock via `SecretWiper` | Native | PASS |
-| DEKs | `KeyHierarchy.generateDek` → `Uint8List` → wrapped via AES-GCM (FFI `calloc`) | Native FFI | PASS |
+| DEKs | `KeyHierarchy.generateDek` -> `Uint8List` -> wrapped via AES-GCM (FFI `calloc`) | Native FFI | PASS |
 | TOTP seed / SFM | `SecondFactor` seals under MK_base via AES-GCM (FFI) | Native FFI | PASS |
 | Backup codes | Argon2id-hashed (FFI), never plaintext | Native FFI | PASS |
 | Entry passwords | `V4VaultEntry.password` is a Dart `String` (UI model) | Dart String | DOCUMENTED |
@@ -26,9 +26,9 @@ All code paths involving unencrypted secrets, DEKs, and the Master Password:
 
 **VRK/DEK/MK never cross back into Dart as plaintext.** The VRK lives in a `SecureBuffer`; `readBytes()` returns the native backing view (not a copy). DEKs are wrapped/encrypted entirely in FFI `calloc` memory.
 
-**`sodium_memzero` is called on dispose.** `SecureBuffer.dispose()` → `sodium_memzero` (verified by `MemoryDumpVerifier`). `VaultService.lock()` wipes the VRK via `SecretWiper`.
+**`sodium_memzero` is called on dispose.** `SecureBuffer.dispose()` -> `sodium_memzero` (verified by `MemoryDumpVerifier`). `VaultService.lock()` wipes the VRK via `SecretWiper`.
 
-**Residual (documented, unavoidable):** `V4VaultEntry.password` is a Dart `String` because the UI model requires it. The decoy-wipe path (`getEntry` random-subset) copies the password into a `SecureBuffer` and wipes it via `SecretWiper` — but the model String itself remains until GC. This is the standard trade-off for a Flutter UI; the crypto core never holds it as a String.
+**Residual (documented, unavoidable):** `V4VaultEntry.password` is a Dart `String` because the UI model requires it. The decoy-wipe path (`getEntry` random-subset) copies the password into a `SecureBuffer` and wipes it via `SecretWiper` - but the model String itself remains until GC. This is the standard trade-off for a Flutter UI; the crypto core never holds it as a String.
 
 ### Fixes applied
 
@@ -36,7 +36,7 @@ No secret was found passed as a Dart `String` into the crypto core. The MP path 
 
 ---
 
-## Task 2 — Linux Clipboard Sensitive MIME Type
+## Task 2 - Linux Clipboard Sensitive MIME Type
 
 ### Finding
 
@@ -46,24 +46,24 @@ The Linux native clipboard channel (`vault_crypto/clipboard`) was NOT implemente
 
 [linux/runner/desktop_plugin.cc](linux/runner/desktop_plugin.cc:126) now implements the `vault_crypto/clipboard` channel:
 
-- `copy` → `desktop_clipboard_copy(text, sensitive)`.
+- `copy` -> `desktop_clipboard_copy(text, sensitive)`.
   - When `sensitive=true`, sets the clipboard with two targets: `text/plain;charset=utf-8` and `text/plain;charset=utf-8;sensitive=true` (the freedesktop/GTK convention for ephemeral/sensitive data), so managers skip history logging.
   - When not sensitive, uses `gtk_clipboard_set_text`.
-- `clear` → `gtk_clipboard_clear`.
+- `clear` -> `gtk_clipboard_clear`.
 
 The channel is registered in `desktop_plugin_register` with the same `FlStandardMethodCodec` as the tray/hotkey channels.
 
 ### Verification
 
 ```bash
-flutter build linux --debug  -> ✓ Built build/linux/x64/debug/bundle/vault_crypto
-flutter test                 -> 203 passed
+flutter build linux --debug  -> Built build/linux/x64/debug/bundle/vault_crypto
+flutter test                 -> 265 passed
 flutter analyze              -> 1 pre-existing flutter_lints include warning only
 ```
 
 ---
 
-## Task 3 — Post-Audit Hardening (Extended Mutation Campaign)
+## Task 3 - Post-Audit Hardening (Extended Mutation Campaign)
 
 ### Applied Fixes
 
@@ -95,7 +95,7 @@ Dart-side zeroing via `fillRange(0, length, 0)`:
 #### 4. Error Oracle Prevention
 
 - Unified all parsing/decryption errors to `CorruptBlobError` or `DecryptionFailedError` (no information leakage via exception types)
-- `padding.dart`: All `FormatException` → `CorruptBlobError`
+- `padding.dart`: All `FormatException` -> `CorruptBlobError`
 
 #### 5. URL Normalization (Search Tags)
 
@@ -104,22 +104,30 @@ Dart-side zeroing via `fillRange(0, length, 0)`:
 
 ### Mutation Campaign Results
 
-Extended campaign from 5 to **51 mutations** covering the entire Trusted Computing Base (TCB):
+Extended campaign from 5 to **100 mutations** covering the entire Trusted Computing Base (TCB):
 
 | Group | Mutations | Invariants Tested |
 |-------|-----------|-------------------|
-| vault_crypto_v4 | 15 | format, outer GCM, MP change, duress, memory zeroing |
-| key_hierarchy | 5 | VRK derivation, DEK wrap/unwrap, CSPRNG |
-| header | 8 | parser, bounds checks, endianness |
-| padding | 4 | bucket masking, CSPRNG |
-| second_factor | 6 | rate-limit, single-use, constant-time, memory zeroing |
-| duress | 2 | domain separation |
-| search_tag | 5 | SearchKey zeroing, bucket padding, normalization |
+| vault_crypto_v4 | 20 | format, outer GCM, MP change, duress, memory zeroing, relock |
+| key_hierarchy | 10 | VRK derivation, DEK wrap/unwrap, CSPRNG, TOTP folding |
+| header | 13 | parser, bounds checks, endianness, KDF sanity |
+| padding | 8 | bucket masking, CSPRNG, big-endian length |
+| second_factor | 9 | rate-limit, single-use, constant-time, memory zeroing |
+| duress | 4 | domain separation, empty salt, key size |
+| search_tag | 9 | SearchKey zeroing, bucket padding, normalization |
 | argon2id | 3 | FFI memory zeroing, fail-closed |
 | aes_gcm | 2 | FFI memory zeroing, AES-NI check |
-| hkdf | 1 | PRK zeroing |
+| hkdf | 3 | PRK zeroing, salt padding, output length |
+| constant_time | 2 | length mismatch, sodium_compare |
+| hmac_sha256 | 2 | key length, fail-closed |
+| sha256 | 2 | output length, fail-closed |
+| secure_buffer | 2 | dispose zeroing, idempotent dispose |
+| native_noise | 2 | keypair failure, short ciphertext |
+| replay_counter | 2 | non-increasing reject, lastSeen update |
+| vector_clock | 4 | increment, dominates, conflict |
+| conflict_resolver | 3 | archive, localWins, archived flag |
 
-**Result: 51/51 killed (100% kill score)**
+**Result: 100/100 killed (100% kill score)**
 
 All mutations target specific security invariants. A "killed" result means the test suite detected the invariant violation. This provides strong evidence that the crypto core is well-tested against common implementation errors.
 
@@ -133,4 +141,4 @@ All mutations target specific security invariants. A "killed" result means the t
 
 ## Conclusion
 
-The crypto core handles all secrets in native/FFI memory with immediate `memzero`. The only Dart-String secret is the UI-model password (documented, unavoidable). The Linux clipboard now advertises the sensitive MIME type so clipboard managers do not log password history. Extended mutation testing (51/51 killed) provides strong evidence that the implementation correctly enforces security invariants across the entire TCB.
+The crypto core handles all secrets in native/FFI memory with immediate `memzero`. The only Dart-String secret is the UI-model password (documented, unavoidable). The Linux clipboard now advertises the sensitive MIME type so clipboard managers do not log password history. Extended mutation testing (100/100 killed) provides strong evidence that the implementation correctly enforces security invariants across the entire TCB.

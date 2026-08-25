@@ -489,6 +489,466 @@ final List<Mutation> ALL_MUTATIONS = <Mutation>[
     search: 'prk.fillRange(0, prk.length, 0);',
     replace: '// MUTATION: PRK not zeroed',
   ),
+
+  // ============================================================
+  // EXPANDED CAMPAIGN — M52..M100 (49 additional semantic mutations)
+  // ============================================================
+
+  // ----------------------------------------------------------
+  // GROUP 11: key_hierarchy.dart (additional) (5)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M52',
+    group: 'key_hierarchy',
+    invariant: 'IKM (MK||TOTP) zeroed after VRK derivation',
+    file: 'lib/src/crypto/v4/key_hierarchy.dart',
+    search: 'ikm.fillRange(0, ikm.length, 0);',
+    replace: '// MUTATION: IKM not zeroed',
+  ),
+  Mutation(
+    id: 'M53',
+    group: 'key_hierarchy',
+    invariant: 'wrapDek prepends nonce before ciphertext',
+    file: 'lib/src/crypto/v4/key_hierarchy.dart',
+    search: 'out.setRange(0, _nonceSize, nonce);',
+    replace: '// MUTATION: nonce not prepended',
+  ),
+  Mutation(
+    id: 'M54',
+    group: 'key_hierarchy',
+    invariant: 'unwrapDek splits nonce from ciphertext',
+    file: 'lib/src/crypto/v4/key_hierarchy.dart',
+    search: 'final nonce = wrapped.sublist(0, _nonceSize);',
+    replace: 'final nonce = Uint8List(_nonceSize); // MUTATION: wrong nonce slice',
+  ),
+  Mutation(
+    id: 'M55',
+    group: 'key_hierarchy',
+    invariant: 'generateDek uses CSPRNG (not deterministic)',
+    file: 'lib/src/crypto/v4/key_hierarchy.dart',
+    search: 'final random = Random.secure();\n    return Uint8List.fromList(List.generate(V4Constants.keySize, (_) => random.nextInt(256)));',
+    replace: 'return Uint8List(V4Constants.keySize); // MUTATION: zero DEK',
+  ),
+  Mutation(
+    id: 'M56',
+    group: 'key_hierarchy',
+    invariant: 'deriveVrk uses empty salt (deterministic)',
+    file: 'lib/src/crypto/v4/key_hierarchy.dart',
+    search: 'final salt = Uint8List(32); // empty salt -> zeros (HKDF extract)',
+    replace: 'final salt = Uint8List.fromList(List.generate(32, (_) => 0x42)); // MUTATION: fixed salt',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 12: header.dart (additional) (5)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M57',
+    group: 'header',
+    invariant: 'entry count sanity check (bounds)',
+    file: 'lib/src/crypto/v4/header.dart',
+    search: 'final entryCount = bd.getUint16(off, Endian.big);',
+    replace: 'final entryCount = 0; // MUTATION: entry count ignored',
+  ),
+  Mutation(
+    id: 'M58',
+    group: 'header',
+    invariant: 'kdfAlgoId validated (reject unknown KDF)',
+    file: 'lib/src/crypto/v4/header.dart',
+    search: 'final algoId = bytes[off++];',
+    replace: 'final algoId = 0; // MUTATION: KDF algo not read',
+  ),
+  Mutation(
+    id: 'M59',
+    group: 'header',
+    invariant: 'kdfMemory sanity (reject absurd memory)',
+    file: 'lib/src/crypto/v4/header.dart',
+    search: 'final mem = bd.getInt32(off, Endian.big);',
+    replace: 'final mem = 0; // MUTATION: kdfMemory ignored',
+  ),
+  Mutation(
+    id: 'M60',
+    group: 'header',
+    invariant: 'kdfIterations sanity (reject 0)',
+    file: 'lib/src/crypto/v4/header.dart',
+    search: 'final iter = bd.getInt32(off, Endian.big);',
+    replace: 'final iter = 0; // MUTATION: kdfIterations ignored',
+  ),
+  Mutation(
+    id: 'M61',
+    group: 'header',
+    invariant: 'entry record tier bounds (0..2)',
+    file: 'lib/src/crypto/v4/header.dart',
+    search: 'final tier = bytes[off++];',
+    replace: 'final tier = 0; // MUTATION: tier ignored',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 13: padding.dart (additional) (4)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M62',
+    group: 'padding',
+    invariant: 'pad stores length big-endian',
+    file: 'lib/src/crypto/padding.dart',
+    search: 'result[0] = (data.length >> 24) & 0xFF;',
+    replace: 'result[0] = data.length & 0xFF; // MUTATION: wrong endianness',
+  ),
+  Mutation(
+    id: 'M63',
+    group: 'padding',
+    invariant: 'unpad rejects padded.length < 4',
+    file: 'lib/src/crypto/padding.dart',
+    search: "if (padded.length < 4) throw StateError('Invalid padded length');",
+    replace: '// MUTATION: min length check removed',
+  ),
+  Mutation(
+    id: 'M64',
+    group: 'padding',
+    invariant: 'pad copies data at offset 4',
+    file: 'lib/src/crypto/padding.dart',
+    search: 'result.setRange(4, 4 + data.length, data);',
+    replace: 'result.setRange(0, data.length, data); // MUTATION: data at wrong offset',
+  ),
+  Mutation(
+    id: 'M65',
+    group: 'padding',
+    invariant: 'pickBucket rounds up to 4MiB for large data',
+    file: 'lib/src/crypto/padding.dart',
+    search: 'return rem == 0 ? required : required + (mult - rem);',
+    replace: 'return required; // MUTATION: no 4MiB rounding',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 14: search_tag.dart (additional) (4)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M66',
+    group: 'search_tag',
+    invariant: 'tagFor normalizes input before HMAC',
+    file: 'lib/src/crypto/v4/search_tag.dart',
+    search: 'final normalized = _normalize(input);\n    return HmacSha256.compute(searchKey, Uint8List.fromList(utf8.encode(normalized)));',
+    replace: 'return HmacSha256.compute(searchKey, Uint8List.fromList(utf8.encode(input))); // MUTATION: no normalize',
+  ),
+  Mutation(
+    id: 'M67',
+    group: 'search_tag',
+    invariant: 'prefix tags start at length 3',
+    file: 'lib/src/crypto/v4/search_tag.dart',
+    search: 'for (var len = 3; len <= normalized.length; len++) {',
+    replace: 'for (var len = 1; len <= normalized.length; len++) { // MUTATION: prefix from len 1',
+  ),
+  Mutation(
+    id: 'M68',
+    group: 'search_tag',
+    invariant: 'normalize strips scheme (https)',
+    file: 'lib/src/crypto/v4/search_tag.dart',
+    search: "if (d.startsWith('https://')) d = d.substring(8);",
+    replace: '// MUTATION: https scheme not stripped',
+  ),
+  Mutation(
+    id: 'M69',
+    group: 'search_tag',
+    invariant: 'normalize strips trailing slash/path',
+    file: 'lib/src/crypto/v4/search_tag.dart',
+    search: "final slashIndex = d.indexOf('/');\n    if (slashIndex != -1) d = d.substring(0, slashIndex);",
+    replace: '// MUTATION: path not stripped',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 15: duress.dart (additional) (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M70',
+    group: 'duress',
+    invariant: 'duress uses empty salt (deterministic)',
+    file: 'lib/src/crypto/v4/duress.dart',
+    search: 'final salt = Uint8List(32);',
+    replace: 'final salt = Uint8List.fromList(List.generate(32, (_) => 0x99)); // MUTATION: fixed salt',
+  ),
+  Mutation(
+    id: 'M71',
+    group: 'duress',
+    invariant: 'duress VRK is keySize bytes',
+    file: 'lib/src/crypto/v4/duress.dart',
+    search: 'return Hkdf.derive(mkDuress, salt, _vrkDuressInfo, V4Constants.keySize);',
+    replace: 'return Hkdf.derive(mkDuress, salt, _vrkDuressInfo, 16); // MUTATION: wrong output length',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 16: constant_time.dart (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M72',
+    group: 'constant_time',
+    invariant: 'equals rejects length mismatch',
+    file: 'lib/src/crypto/native/constant_time.dart',
+    search: 'if (a.length != b.length) return false;',
+    replace: '// MUTATION: length mismatch not rejected',
+  ),
+  Mutation(
+    id: 'M73',
+    group: 'constant_time',
+    invariant: 'equals uses sodium_compare (constant-time)',
+    file: 'lib/src/crypto/native/constant_time.dart',
+    search: "return sodiumCompare(pa.cast<Void>(), pb.cast<Void>(), a.length) == 0;",
+    replace: 'return _varTimeEquals(a, b); // MUTATION: variable-time compare\n  // helper: bool _varTimeEquals(Uint8List a, Uint8List b) => a.length == b.length && a.every((e) => b.contains(e));',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 17: hmac_sha256.dart (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M74',
+    group: 'hmac_sha256',
+    invariant: 'HMAC key must be 32 bytes',
+    file: 'lib/src/crypto/native/hmac_sha256.dart',
+    search: "if (key.length != _KEYBYTES) throw StateError('HMAC key must be 32 bytes');",
+    replace: '// MUTATION: key length not enforced',
+  ),
+  Mutation(
+    id: 'M75',
+    group: 'hmac_sha256',
+    invariant: 'HMAC failure throws (fail-closed)',
+    file: 'lib/src/crypto/native/hmac_sha256.dart',
+    search: "if (rc != 0) throw StateError('HMAC-SHA256 failed');",
+    replace: '// MUTATION: HMAC failure ignored',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 18: sha256.dart (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M76',
+    group: 'sha256',
+    invariant: 'SHA-256 failure throws (fail-closed)',
+    file: 'lib/src/crypto/native/sha256.dart',
+    search: "if (rc != 0) throw StateError('SHA-256 failed');",
+    replace: '// MUTATION: SHA-256 failure ignored',
+  ),
+  Mutation(
+    id: 'M77',
+    group: 'sha256',
+    invariant: 'SHA-256 output is 32 bytes',
+    file: 'lib/src/crypto/native/sha256.dart',
+    search: 'return Uint8List.fromList(out.asTypedList(_BYTES));',
+    replace: 'return Uint8List.fromList(out.asTypedList(16)); // MUTATION: truncated output',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 19: secure_buffer.dart (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M78',
+    group: 'secure_buffer',
+    invariant: 'dispose zeroes native memory',
+    file: 'lib/src/crypto/native/secure_buffer.dart',
+    search: 'sodiumMemzero(_native, _backing.length);',
+    replace: '// MUTATION: native memory not zeroed',
+  ),
+  Mutation(
+    id: 'M79',
+    group: 'secure_buffer',
+    invariant: 'dispose is idempotent (double-dispose safe)',
+    file: 'lib/src/crypto/native/secure_buffer.dart',
+    search: 'if (_isDisposed) return;',
+    replace: '// MUTATION: double-dispose not guarded',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 20: native_noise.dart (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M80',
+    group: 'native_noise',
+    invariant: 'crypto_box keypair failure throws',
+    file: 'lib/src/sync/native_noise.dart',
+    search: "if (rc != 0) throw StateError('crypto_box_keypair failed');",
+    replace: '// MUTATION: keypair failure ignored',
+  ),
+  Mutation(
+    id: 'M81',
+    group: 'native_noise',
+    invariant: 'decryptFromSelf rejects short ciphertext',
+    file: 'lib/src/sync/native_noise.dart',
+    search: "if (ct.length < _ABYTES) throw StateError('crypto_box ciphertext too short');",
+    replace: '// MUTATION: short ciphertext not rejected',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 21: replay_counter.dart (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M82',
+    group: 'replay_counter',
+    invariant: 'replay counter rejects non-increasing values',
+    file: 'lib/src/sync/replay_counter.dart',
+    search: 'if (counter <= _lastSeen) return false;',
+    replace: '// MUTATION: replay not rejected',
+  ),
+  Mutation(
+    id: 'M83',
+    group: 'replay_counter',
+    invariant: 'replay counter updates lastSeen on accept',
+    file: 'lib/src/sync/replay_counter.dart',
+    search: '_lastSeen = counter;',
+    replace: '// MUTATION: lastSeen not updated',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 22: vector_clock.dart (4)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M84',
+    group: 'vector_clock',
+    invariant: 'increment bumps device counter by 1',
+    file: 'lib/src/sync/vector_clock.dart',
+    search: 'final c = (map[deviceId] ?? 0) + 1;',
+    replace: 'final c = (map[deviceId] ?? 0); // MUTATION: no increment',
+  ),
+  Mutation(
+    id: 'M85',
+    group: 'vector_clock',
+    invariant: 'dominates requires strictly newer on at least one',
+    file: 'lib/src/sync/vector_clock.dart',
+    search: 'return strictlyNewer;',
+    replace: 'return true; // MUTATION: always dominates',
+  ),
+  Mutation(
+    id: 'M86',
+    group: 'vector_clock',
+    invariant: 'dominates returns false if other ahead anywhere',
+    file: 'lib/src/sync/vector_clock.dart',
+    search: 'if (l < r) return false; // other is ahead somewhere -> we don\'t dominate',
+    replace: '// MUTATION: other-ahead not detected',
+  ),
+  Mutation(
+    id: 'M87',
+    group: 'vector_clock',
+    invariant: 'decideAgainst detects conflict (neither dominates)',
+    file: 'lib/src/sync/vector_clock.dart',
+    search: 'return SyncFlag.conflict;',
+    replace: 'return SyncFlag.localWins; // MUTATION: conflict misreported as local win',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 23: conflict_resolver.dart (3)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M88',
+    group: 'conflict_resolver',
+    invariant: 'conflict archives the remote (losing) version',
+    file: 'lib/src/sync/conflict_resolver.dart',
+    search: 'await file.writeAsBytes(remoteBytes, flush: true);',
+    replace: 'await file.writeAsBytes(localBytes, flush: true); // MUTATION: archives local instead',
+  ),
+  Mutation(
+    id: 'M89',
+    group: 'conflict_resolver',
+    invariant: 'localWins does not archive',
+    file: 'lib/src/sync/conflict_resolver.dart',
+    search: 'case SyncFlag.localWins:\n        return ConflictOutcome(archived: false, decision: SyncFlag.localWins);',
+    replace: 'case SyncFlag.localWins:\n        return ConflictOutcome(archived: true, decision: SyncFlag.localWins); // MUTATION: local win archived',
+  ),
+  Mutation(
+    id: 'M90',
+    group: 'conflict_resolver',
+    invariant: 'conflict outcome marks archived=true',
+    file: 'lib/src/sync/conflict_resolver.dart',
+    search: 'archived: true,\n          decision: SyncFlag.conflict,',
+    replace: 'archived: false,\n          decision: SyncFlag.conflict, // MUTATION: conflict not marked archived',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 24: vault_crypto_v4.dart (additional) (5)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M91',
+    group: 'vault_crypto_v4',
+    invariant: 'outer GCM decrypt verifies tag (wrong key fails)',
+    file: 'lib/src/crypto/v4/vault_crypto_v4.dart',
+    search: 'final outerTag = AesGcm.encrypt(vrk, nonce, headerBytes, Uint8List(0));',
+    replace: 'final outerTag = AesGcm.encrypt(vrk, nonce, headerBytes, Uint8List(1)); // MUTATION: non-empty plaintext',
+  ),
+  Mutation(
+    id: 'M92',
+    group: 'vault_crypto_v4',
+    invariant: 'relock awaits before zeroing keys (no race)',
+    file: 'lib/src/crypto/v4/vault_crypto_v4.dart',
+    search: 'return await relock(',
+    replace: 'return relock( // MUTATION: unawaited relock (key wipe race)',
+  ),
+  Mutation(
+    id: 'M93',
+    group: 'vault_crypto_v4',
+    invariant: 'unlockSession zeroes MK after use',
+    file: 'lib/src/crypto/v4/vault_crypto_v4.dart',
+    search: 'mk.fillRange(0, mk.length, 0);',
+    replace: '// MUTATION: MK not zeroed',
+  ),
+  Mutation(
+    id: 'M94',
+    group: 'vault_crypto_v4',
+    invariant: 'duress unlock zeroes VRK_duress after use',
+    file: 'lib/src/crypto/v4/vault_crypto_v4.dart',
+    search: 'vrkDuress.fillRange(0, vrkDuress.length, 0);',
+    replace: '// MUTATION: VRK_duress not zeroed',
+  ),
+  Mutation(
+    id: 'M95',
+    group: 'vault_crypto_v4',
+    invariant: 'changeMasterPassword re-derives VRK under new MP',
+    file: 'lib/src/crypto/v4/vault_crypto_v4.dart',
+    search: 'final newVrk = KeyHierarchy.deriveVrk(newMkBase, totpBytes: sfm);',
+    replace: 'final newVrk = oldVrk; // MUTATION: VRK not re-derived',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 25: second_factor.dart (additional) (3)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M96',
+    group: 'second_factor',
+    invariant: 'backup code hash uses dedicated salt',
+    file: 'lib/src/crypto/v4/second_factor.dart',
+    search: 'final candidate = _hashCode(code, salt);',
+    replace: 'final candidate = _hashCode(code, Uint8List(_saltSize)); // MUTATION: empty salt',
+  ),
+  Mutation(
+    id: 'M97',
+    group: 'second_factor',
+    invariant: 'wrong code increments attempt counter',
+    file: 'lib/src/crypto/v4/second_factor.dart',
+    search: 'updated[_nonceSize + _lenSize + len + _saltSize] = attempts + 1;',
+    replace: 'updated[_nonceSize + _lenSize + len + _saltSize] = attempts; // MUTATION: counter not incremented',
+  ),
+  Mutation(
+    id: 'M98',
+    group: 'second_factor',
+    invariant: 'used code is removed (single-use)',
+    file: 'lib/src/crypto/v4/second_factor.dart',
+    search: 'if (i == matched) continue;',
+    replace: '// MUTATION: used code not skipped (still in list)',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 26: hkdf.dart (additional) (2)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M99',
+    group: 'hkdf',
+    invariant: 'HKDF extract pads short salt to hash length',
+    file: 'lib/src/crypto/native/hkdf.dart',
+    search: 'if (salt.length < _HASHBYTES) {',
+    replace: 'if (false) { // MUTATION: short salt not padded',
+  ),
+  Mutation(
+    id: 'M100',
+    group: 'hkdf',
+    invariant: 'HKDF expand output length matches request',
+    file: 'lib/src/crypto/native/hkdf.dart',
+    search: 'final out = Uint8List(outLen);',
+    replace: 'final out = Uint8List(outLen - 1); // MUTATION: wrong output length',
+  ),
 ];
 
 // ============================================================
