@@ -1,3 +1,11 @@
+// File: android/app/src/main/kotlin/com/example/vault_crypto/MainActivity.kt
+// Intent: Main Flutter Activity. Bridges platform channels and handles Autofill intents.
+// Invariants:
+// - FLAG_SECURE enforced to prevent screenshots/recent apps leak.
+// - Autofill credentials NEVER touch Intent extras (P0-2).
+// - Autofill bridge uses MethodChannel to pull domain and push credentials securely.
+// Dependencies: FlutterFragmentActivity, AutofillSession, BiometricPrompt, BleTransportPlugin.
+
 package com.example.vault_crypto
 
 import android.content.ClipData
@@ -23,28 +31,23 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
 
-/**
- * MainActivity for Vault Crypto.
- * Bridges: clipboard (sensitive MIME), biometric Keystore, BLE plugin,
- * and a native file picker (Storage Access Framework) so the user can
- * visually choose where to save/load the encrypted vault file.
- */
 class MainActivity : FlutterFragmentActivity() {
     private val CLIPBOARD_CHANNEL = "vault_crypto/clipboard"
     private val BIOMETRIC_CHANNEL = "vault_crypto/biometric"
     private val FILE_PICKER_CHANNEL = "vault_crypto/file_picker"
+    private val AUTOFILL_BRIDGE_CHANNEL = "vault_crypto/autofill_bridge"
     private val KEY_ALIAS = "vault_biometric_key"
 
     private var blePlugin: BleTransportPlugin? = null
+    private var autofillBridgeChannel: MethodChannel? = null
+    
+    // Stores domain temporarily until Dart UI is ready to consume it.
+    private var pendingAutofillDomain: String? = null
 
-    // Pending platform-channel results while the system picker is open
     private var pendingExportPath: String? = null
     private var pendingExportResult: MethodChannel.Result? = null
     private var pendingImportResult: MethodChannel.Result? = null
 
-    // Modern Activity Result API (does not conflict with Flutter internals).
-    // EXPORT: user picks a destination in the native "Save as" dialog,
-    // then we stream the temp vault file into the chosen URI.
     private val exportLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -67,8 +70,6 @@ class MainActivity : FlutterFragmentActivity() {
         pendingExportPath = null
     }
 
-    // IMPORT: user picks any file in the native "Open" dialog,
-    // we read its bytes and hand them to Dart for MP verification.
     private val importLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -88,16 +89,11 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Prevent screenshots and recent apps preview (security)
         window.setFlags(
             android.view.WindowManager.LayoutParams.FLAG_SECURE,
             android.view.WindowManager.LayoutParams.FLAG_SECURE
         )
 
-        // Request Bluetooth runtime permissions per API level.
-        // Intent: Nearby Connections needs these at runtime; manifest declares
-        // them but Android 12+ requires an explicit user grant prompt.
-        // State Transition: launch -> requestPermissions -> onRequestPermissionsResult.
         val notGranted = requiredPermissions().filter {
             ContextCompat.checkSelfPermission(this, it) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -107,11 +103,27 @@ class MainActivity : FlutterFragmentActivity() {
                 this, notGranted.toTypedArray(), REQ_BLE
             )
         }
+        
+        handleAutofillIntent(intent)
     }
 
-    // Full BLE permission set per API level. Mirrors BleTransportPlugin.hasBlePermissions().
-    // API 33+: add NEARBY_WIFI_DEVICES (WiFi Direct bulk transfer).
-    // API <= 30: legacy ACCESS_FINE_LOCATION (BLE scanning).
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleAutofillIntent(intent)
+    }
+
+    private fun handleAutofillIntent(intent: Intent?) {
+        val action = intent?.getStringExtra(VaultAutofillService.EXTRA_ACTION)
+        if (action == VaultAutofillService.ACTION_AUTOFILL_AUTH) {
+            val domain = intent.getStringExtra(VaultAutofillService.EXTRA_DOMAIN) ?: ""
+            pendingAutofillDomain = domain
+            
+            // Push to Dart if channel is already ready
+            autofillBridgeChannel?.invokeMethod("onAutofillRequested", mapOf("domain" to domain))
+        }
+    }
+
     private val REQ_BLE = 1001
 
     private fun requiredPermissions(): Array<String> = when {
@@ -150,10 +162,8 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Register BLE Transport Plugin
         blePlugin = BleTransportPlugin.registerWith(this, flutterEngine)
 
-        // Clipboard Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CLIPBOARD_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -171,7 +181,6 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
 
-        // Biometric Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BIOMETRIC_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -189,7 +198,6 @@ class MainActivity : FlutterFragmentActivity() {
                 }
             }
 
-        // File picker channel: native "Save as" / "Open" dialogs (SAF)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FILE_PICKER_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -214,6 +222,34 @@ class MainActivity : FlutterFragmentActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        // Autofill Bridge: Secure transit between Dart UI and AutofillService
+        autofillBridgeChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AUTOFILL_BRIDGE_CHANNEL)
+        autofillBridgeChannel?.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getPendingDomain" -> {
+                    val domain = pendingAutofillDomain
+                    pendingAutofillDomain = null
+                    result.success(domain)
+                }
+                "completeAutofill" -> {
+                    val username = call.argument<String>("username")
+                    val password = call.argument<String>("password")
+                    if (username != null && password != null) {
+                        // Pass directly to singleton. NO Binder transit.
+                        AutofillSession.completeSession(username, password)
+                    } else {
+                        AutofillSession.cancelSession()
+                    }
+                    result.success(true)
+                }
+                "cancelAutofill" -> {
+                    AutofillSession.cancelSession()
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
     private fun copyToClipboard(text: String, sensitive: Boolean) {

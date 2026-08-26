@@ -285,13 +285,14 @@ class GoogleAuthExportParser {
         return const TotpImportError(TotpParseError.unknownFormat);
       }
 
-      final String? issuer = item['issuer'] as String?;
-      final String? accountName = item['accountName'] as String?;
-      final String? secretB32 = item['secret'] as String?;
-      final int digits = (item['digits'] as int?) ?? 6;
-      final int period = (item['period'] as int?) ?? 30;
-      final String algorithmStr = (item['algorithm'] as String?) ?? 'SHA1';
-
+      // SECURITY: Safe type extraction to prevent TypeError on malformed JSON.
+      final String? issuer = item['issuer'] is String ? item['issuer'] as String : null;
+      final String? accountName = item['accountName'] is String ? item['accountName'] as String : null;
+      final String? secretB32 = item['secret'] is String ? item['secret'] as String : null;
+      final int digits = item['digits'] is int ? item['digits'] as int : 6;
+      final int period = item['period'] is int ? item['period'] as int : 30;
+      final String algorithmStr = item['algorithm'] is String ? item['algorithm'] as String : 'SHA1';
+      
       // Validate required fields
       if (accountName == null || secretB32 == null) {
         return const TotpImportError(TotpParseError.missingSecret);

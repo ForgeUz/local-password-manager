@@ -30,9 +30,11 @@ target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(APPINDICATOR REQUIRED IMPORTED_TARGET ayatana-appindicator3-0.1)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::APPINDICATOR)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::X11)
+target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GIO)
 
 # v5 E19: seccomp deny-list uses raw prctl/BPF from libc; the headers come from
 # the kernel headers (linux/filter.h, linux/seccomp.h) present on Mint.

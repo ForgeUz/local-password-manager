@@ -193,6 +193,11 @@ class TierAutofillEnforcer {
     final normExpected = _normalizeDomain(expected);
     final normRequested = _normalizeDomain(requested);
 
+    // SECURITY: RFC 1035 domain limit (253 chars). Prevents O(N*M) algorithmic DoS in edit distance.
+    if (normExpected.length > 253 || normRequested.length > 253) {
+      return 'Domain exceeds RFC 1035 maximum length.';
+    }
+
     // Exact match after normalization -> not a lookalike.
     if (normExpected == normRequested) return null;
 

@@ -11,7 +11,7 @@
 | Metric | Value |
 |--------|-------|
 | Total tests | 265 (all passing) |
-| Mutation kill score | 100% (100/100 TCB mutations) |
+| Mutation kill score | 100% (120/120: TCB + V6.5 M101-M120) |
 | Analyzer errors | 0 |
 | Analyzer warnings | pre-existing info/warnings only |
 | External audit | Pending (recruiting) |
@@ -450,7 +450,7 @@ Android Autofill Service integration: domain extraction, tier enforcement, biome
 
 2. **Mutation testing covers only encoded mutations.** Does not replace external cryptographic audit. Equivalent mutants (security-only, not functional) documented but not counted as gaps.
 
-3. **V6.5 modules not yet mutation-tested.** 70 unit tests pass, but mutation campaign not extended to V6.5. Recommended before external audit.
+3. RESOLVED: V6.5 modules mutation-tested. 20/20 mutants killed (M101-M120), 100% score.
 
 4. **Android autofill has no automated unit tests.** Device-tested on Android 13 (biometric, autofill, BLE, FLAG_SECURE). Automated coverage is not present for the platform layer.
 
@@ -474,7 +474,7 @@ Android Autofill Service integration: domain extraction, tier enforcement, biome
 
 ### Priority 1 (Must Fix Before Audit)
 
-- [ ] Extend mutation campaign to V6.5 modules (especially `tier_autofill_enforcer.dart`, `totp_generator.dart`)
+- [x] Extend mutation campaign to V6.5 modules (especially `tier_autofill_enforcer.dart`, `totp_generator.dart`)
 - [ ] Complete Android device testing (biometric, autofill, BLE)
 - [ ] Strengthen pairing passphrase validation to zxcvbn ≥ 3 (currently ≥ 8 alphanumeric)
 

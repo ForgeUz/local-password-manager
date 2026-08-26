@@ -58,29 +58,61 @@ class V4EntryRecord {
   }
 
   factory V4EntryRecord.parse(Uint8List bytes) {
+    // SECURITY: Bounds checking to prevent RangeError on malformed input.
     final bd = bytes.buffer.asByteData();
     var off = 0;
+    
+    void checkBounds(int needed) {
+      if (off + needed > bytes.length) {
+        throw CorruptBlobError('Record extends beyond blob boundary');
+      }
+    }
+
+    checkBounds(V4Constants.uuidSize);
     final id = bytes.sublist(off, off + V4Constants.uuidSize);
     off += V4Constants.uuidSize;
+    
+    checkBounds(1);
     final tier = bytes[off++];
+    
+    checkBounds(2);
     final dekLen = bd.getUint16(off, Endian.big);
     off += 2;
+    
+    if (dekLen > 1024) throw CorruptBlobError('DEK length unreasonably large');
+    checkBounds(dekLen);
     final wrappedDek = bytes.sublist(off, off + dekLen);
     off += dekLen;
+    
+    checkBounds(2);
     final tagCount = bd.getUint16(off, Endian.big);
     off += 2;
+    
+    if (tagCount > 100) throw CorruptBlobError('Too many search tags');
     final searchTags = <Uint8List>[];
     for (var i = 0; i < tagCount; i++) {
+      checkBounds(V4Constants.searchTagSize);
       searchTags.add(bytes.sublist(off, off + V4Constants.searchTagSize));
       off += V4Constants.searchTagSize;
     }
+    
+    checkBounds(2);
     final vcLen = bd.getUint16(off, Endian.big);
     off += 2;
+    
+    if (vcLen > 256) throw CorruptBlobError('Vector clock too large');
+    checkBounds(vcLen);
     final vectorClock = bytes.sublist(off, off + vcLen);
     off += vcLen;
+    
+    checkBounds(4);
     final ctLen = bd.getUint32(off, Endian.big);
     off += 4;
+    
+    if (ctLen > 1024 * 1024) throw CorruptBlobError('Ciphertext too large');
+    checkBounds(ctLen);
     final ciphertext = bytes.sublist(off, off + ctLen);
+    
     return V4EntryRecord(
       id: id,
       tier: tier,
@@ -199,11 +231,15 @@ class V4Header {
     final entryCount = bd.getUint16(off, Endian.big);
     off += 2;
     final entries = <V4EntryRecord>[];
-    for (var i = 0; i < entryCount; i++) {
-      // Parse one record by scanning: need to know its length.
-      final rec = _parseOneRecord(bytes, off);
-      entries.add(rec);
-      off += _recordLength(rec);
+    try {
+      for (var i = 0; i < entryCount; i++) {
+        // Parse one record by scanning: need to know its length.
+        final rec = _parseOneRecord(bytes, off);
+        entries.add(rec);
+        off += _recordLength(rec);
+      }
+    } on RangeError {
+      throw CorruptBlobError('Malformed entry record');
     }
     return V4Header(
       magic: magic,

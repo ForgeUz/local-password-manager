@@ -949,7 +949,185 @@ final List<Mutation> ALL_MUTATIONS = <Mutation>[
     search: 'final out = Uint8List(outLen);',
     replace: 'final out = Uint8List(outLen - 1); // MUTATION: wrong output length',
   ),
+
+  // ============================================================
+  // V6.5 CAMPAIGN — M101..M120 (Security Tiers + TOTP + Enforcer)
+  // Closes P0-1: mutation coverage for modules added in V6.5.
+  // ============================================================
+
+  // ----------------------------------------------------------
+  // GROUP 27: tier_autofill_enforcer.dart (8)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M101',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Critical tier NEVER autofills',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: "case SecurityTier.critical:\n        // Critical: NEVER autofill. User must type manually.\n        return const BlockManualOnly(",
+    replace: "case SecurityTier.critical:\n        return const FillImmediately(); // MUTATION: critical autofills",
+  ),
+  Mutation(
+    id: 'M102',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Lookalike domain HARD STOPS before tier check',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: 'final lookalikeReason = _detectLookalike(\n      request.entryDomain,\n      request.requestedDomain,\n    );\n    if (lookalikeReason != null) {',
+    replace: '// MUTATION: lookalike skipped\n    if (false) {',
+  ),
+  Mutation(
+    id: 'M103',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Domain mismatch blocks autofill',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: 'if (!_domainsMatch(request.entryDomain, request.requestedDomain)) {\n      return BlockDomainMismatch(',
+    replace: '// MUTATION: domain match not enforced\n    if (false) {\n      return BlockDomainMismatch(',
+  ),
+  Mutation(
+    id: 'M104',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Sensitive tier adds 5s delay',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: 'final delay = TierPolicy.autofillDelay(SecurityTier.sensitive);\n        return FillAfterReauth(delaySeconds: delay.inSeconds);',
+    replace: 'return const FillAfterReauth(delaySeconds: 0); // MUTATION: no delay',
+  ),
+  Mutation(
+    id: 'M105',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Normalization strips www. prefix',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: "if (d.startsWith('www.')) d = d.substring(4);",
+    replace: '// MUTATION: www. not stripped',
+  ),
+  Mutation(
+    id: 'M106',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Edit distance 1 detected as typosquat',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: 'if (_editDistance(normExpected, normRequested) == 1) {',
+    replace: 'if (_editDistance(normExpected, normRequested) == 99) { // MUTATION: never triggers',
+  ),
+  Mutation(
+    id: 'M107',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Homoglyph 0/o pair detected',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: "'0': 'o', 'o': '0',",
+    replace: "// MUTATION: 0/o not confusable",
+  ),
+  Mutation(
+    id: 'M108',
+    group: 'tier_autofill_enforcer',
+    invariant: 'Subdomain impersonation detected',
+    file: 'lib/src/autofill/tier_autofill_enforcer.dart',
+    search: "if (requested.contains('.\$expected.')) {\n      // expected appears mid-domain with different parent -> suspicious\n      return true;\n    }",
+    replace: '// MUTATION: subdomain impersonation ignored\n    if (false) { return true; }',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 28: security_tier.dart (6)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M109',
+    group: 'security_tier',
+    invariant: 'Critical tier blocks export',
+    file: 'lib/src/security/security_tier.dart',
+    search: 'case SecurityTier.critical:\n        return false;\n    }\n  }\n\n  /// Whether TOTP codes',
+    replace: 'case SecurityTier.critical:\n        return true; // MUTATION: critical exports\n    }\n  }\n\n  /// Whether TOTP codes',
+  ),
+  Mutation(
+    id: 'M110',
+    group: 'security_tier',
+    invariant: 'Downgrade requires explicit confirmation',
+    file: 'lib/src/security/security_tier.dart',
+    search: 'final warning = _downgradeWarning(current, proposed);\n    return TierDowngradeConfirm(',
+    replace: 'return TierValid(proposed); // MUTATION: silent downgrade',
+  ),
+  Mutation(
+    id: 'M111',
+    group: 'security_tier',
+    invariant: 'Critical reveal requires master password',
+    file: 'lib/src/security/security_tier.dart',
+    search: 'case SecurityTier.critical:\n        return AuthRequirement.masterPassword;\n    }\n  }\n\n  /// Whether editing',
+    replace: 'case SecurityTier.critical:\n        return AuthRequirement.biometric; // MUTATION: biometric only\n    }\n  }\n\n  /// Whether editing',
+  ),
+  Mutation(
+    id: 'M112',
+    group: 'security_tier',
+    invariant: 'Sensitive tier enforces 5s autofill delay',
+    file: 'lib/src/security/security_tier.dart',
+    search: 'return const Duration(seconds: 5);',
+    replace: 'return Duration.zero; // MUTATION: no delay',
+  ),
+  Mutation(
+    id: 'M113',
+    group: 'security_tier',
+    invariant: 'Standard tier allows autofill',
+    file: 'lib/src/security/security_tier.dart',
+    search: 'case SecurityTier.standard:\n        return true;\n      case SecurityTier.sensitive:',
+    replace: 'case SecurityTier.standard:\n        return false; // MUTATION: standard blocks\n      case SecurityTier.sensitive:',
+  ),
+  Mutation(
+    id: 'M114',
+    group: 'security_tier',
+    invariant: 'Critical blocks auto-copy TOTP',
+    file: 'lib/src/security/security_tier.dart',
+    search: 'case SecurityTier.critical:\n        return false;\n    }\n  }\n}\n\n/// What authentication',
+    replace: 'case SecurityTier.critical:\n        return true; // MUTATION: critical auto-copies\n    }\n  }\n}\n\n/// What authentication',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 29: totp_generator.dart (6)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M115',
+    group: 'totp_generator',
+    invariant: 'Dynamic truncation uses last-byte offset',
+    file: 'lib/src/totp/totp_generator.dart',
+    search: 'final int offset = hmacResult[hmacResult.length - 1] & 0x0F;',
+    replace: 'final int offset = 0; // MUTATION: fixed offset',
+  ),
+  Mutation(
+    id: 'M116',
+    group: 'totp_generator',
+    invariant: 'Codes zero-padded to digit count',
+    file: 'lib/src/totp/totp_generator.dart',
+    search: "return code.toString().padLeft(config.digits, '0');",
+    replace: 'return code.toString(); // MUTATION: no padding',
+  ),
+  Mutation(
+    id: 'M117',
+    group: 'totp_generator',
+    invariant: 'Validate allows +/-1 window (clock drift)',
+    file: 'lib/src/totp/totp_generator.dart',
+    search: 'for (final offset in [-1, 0, 1]) {',
+    replace: 'for (final offset in [0]) { // MUTATION: strict window only',
+  ),
+  Mutation(
+    id: 'M118',
+    group: 'totp_generator',
+    invariant: 'Constant-time compare returns false on mismatch',
+    file: 'lib/src/totp/totp_generator.dart',
+    search: 'return result == 0;',
+    replace: 'return true; // MUTATION: always returns true if length matches',
+  ),
+  Mutation(
+    id: 'M119',
+    group: 'totp_generator',
+    invariant: 'Counter encoded big-endian (RFC 4226)',
+    file: 'lib/src/totp/totp_generator.dart',
+    search: 'for (int i = 7; i >= 0; i--) {\n      bytes[i] = counter & 0xFF;\n      counter >>= 8;\n    }',
+    replace: 'for (int i = 0; i < 8; i++) {\n      bytes[i] = counter & 0xFF;\n      counter >>= 8;\n    } // MUTATION: little-endian',
+  ),
+  Mutation(
+    id: 'M120',
+    group: 'totp_generator',
+    invariant: 'Truncated value modulo 10^digits',
+    file: 'lib/src/totp/totp_generator.dart',
+    search: 'return binary % _pow10(digits);',
+    replace: 'return binary; // MUTATION: no modulo (raw 31-bit value)',
+  ),
 ];
+
 
 // ============================================================
 // MAIN

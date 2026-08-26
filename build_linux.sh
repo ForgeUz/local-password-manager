@@ -5,6 +5,15 @@
 # IntegrityHeartbeat can verify the running binary against the published build.
 set -euo pipefail
 
+# HERMETIC BUILD: Force deterministic timestamps and paths.
+# SOURCE_DATE_EPOCH pins build time to last git commit (or current time if no git).
+export SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct 2>/dev/null || date +%s)"
+export ZERO_AR_DATE=1
+export PYTHONHASHSEED=0
+export LC_ALL=C
+
+echo "[+] Building Linux release bundle (hermetic)..."
+
 cd "$(dirname "$0")"
 
 echo "==> flutter build linux --release"

@@ -1,10 +1,18 @@
-# Project-level configuration.
 cmake_minimum_required(VERSION 3.13)
 project(runner LANGUAGES CXX)
+
+# HERMETIC BUILD: Normalize absolute paths for reproducible binaries.
+# Strips build directory paths from DWARF debug info and __FILE__ macros.
+# Only active when SOURCE_DATE_EPOCH is set by the build script.
+if(DEFINED ENV{SOURCE_DATE_EPOCH})
+  add_compile_options(-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
+  add_compile_options(-fdebug-prefix-map=${CMAKE_SOURCE_DIR}=.)
+endif()
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "vault_crypto")
+
 # The unique GTK application identifier for this application. See:
 # https://wiki.gnome.org/HowDoI/ChooseApplicationID
 set(APPLICATION_ID "com.example.vault_crypto")

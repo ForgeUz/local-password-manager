@@ -11,8 +11,8 @@ Status legend: DONE / PARTIAL / NOT STARTED / NEXT
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 265 (all passing) |
-| Mutation kill score | 100% (100/100) |
+| Total tests | 312 (all passing) |
+| Mutation kill score | 100% (120/120: 100 TCB + 20 V6.5 M101-M120) |
 | Analyzer errors | 0 |
 | Analyzer warnings | pre-existing info/warnings only |
 | External audit | NOT STARTED (pending) |
@@ -102,9 +102,9 @@ All V6.5 modules implemented and unit-tested. The core mutation campaign is comp
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Full test suite | 265 | DONE (all pass) |
+| Full test suite | 312 | DONE (all pass) |
 | Mutation campaign (core) | 100/100 | DONE (100% kill) |
-| Mutation campaign (V6.5) | 0 | NEXT (pending) |
+| Mutation campaign (V6.5) | 20/20 | DONE (100% kill, M101-M120) |
 | Static analysis | 0 errors | DONE |
 
 ---
@@ -185,7 +185,7 @@ Carried forward, still applicable:
 
 V6.5 additions:
 
-5. V6.5 modules not yet mutation-tested (70 tests pass, mutation campaign pending).
+5. RESOLVED: V6.5 modules mutation-tested (20/20 killed, M101-M120, 100% score).
 6. P2P sync requires both devices online simultaneously (no async).
 7. BLE 10m range physical, not software-enforced.
 8. TOTP secrets in vault = single point of failure.
@@ -203,7 +203,7 @@ V6.5 additions:
 ### Next 2 weeks
 3. Publish on GitHub with release tag `v1.0.0-pre-audit` (P1)
 4. Post announcement to HN, Reddit, security lists (P1)
-5. Extend mutation campaign to V6.5 modules
+5. DONE: mutation campaign extended to V6.5 (20/20 killed)
 
 ### Blocked
 - External audit (P0) - needs auditor
@@ -220,7 +220,7 @@ V6.5 additions:
 - [x] All internal inconsistencies fixed (0 analyzer errors)
 - [x] README, SECURITY, SECURITY_AUDIT, AUDIT_BRIEF, CONTRIBUTING updated
 - [x] Android compiled and device-tested
-- [ ] V6.5 mutation campaign run
+- [x] V6.5 mutation campaign run
 
 ### V6 Acceptance (from v6_delta.md)
 - [x] `v6_delta.md` created
