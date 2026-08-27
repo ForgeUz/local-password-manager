@@ -10,6 +10,7 @@ package com.example.vault_crypto
 
 import android.service.autofill.Dataset
 import android.service.autofill.FillCallback
+import android.service.autofill.FillResponse
 import android.view.autofill.AutofillId
 import android.view.autofill.AutofillValue
 import android.widget.RemoteViews
@@ -46,7 +47,10 @@ object AutofillSession {
                 val value = if (isPwd) password else username
                 builder.setValue(id, AutofillValue.forText(value), presentation)
             }
-            cb.onSuccess(builder.build())
+            
+            // ИСПРАВЛЕНО: Оборачиваем Dataset в FillResponse
+            val fillResponse = FillResponse.Builder().addDataset(builder.build()).build()
+            cb.onSuccess(fillResponse)
         } catch (e: Exception) {
             cb.onSuccess(null) // Fail closed on UI build error
         } finally {

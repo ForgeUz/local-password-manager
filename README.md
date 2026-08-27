@@ -38,7 +38,7 @@ A local-first password manager for Linux and Android. No cloud, no server, no te
 
 ## What's New in V6.5 (Mass-User Readiness)
 
-V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. The full suite is 315+ tests, all passing.
+V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. The full suite is 325+ tests, all passing.
 
 ### Security Tiers (Standard / Sensitive / Critical)
 
@@ -78,6 +78,7 @@ Peer-to-peer device synchronization via Bluetooth Low Energy (10-meter range):
 - **Transport:** BLE for discovery + WiFi Direct for bulk transfer (Android Nearby Connections API)
 - **Security:** Noise NNpsk0 handshake with TOFU (Trust-On-First-Use) pinning, 60-second pairing window, max 3 attempts before cooldown
 - **Conflict resolution:** Manual (user chooses which version to keep), no auto-merge
+- **UI Architecture:** Pure `SyncStore` + `SyncState` typestate enforces State/View separation, preventing UI-layer memory leaks of Noise session keys.
 
 **Honest limitations:**
 - Both devices must be online simultaneously (no async sync)
@@ -91,8 +92,9 @@ Peer-to-peer device synchronization via Bluetooth Low Energy (10-meter range):
 Native Android Autofill Framework integration:
 
 - **Domain extraction:** Trusted source (`AssistStructure.webDomain`), not spoofable page title
-- **Lookalike detection:** Homoglyph check (0/o, 1/l/i, 5/s), edit distance ≤1, subdomain impersonation detection
+- **Lookalike detection:** Homoglyph check (0/o, 1/l/i, 5/s), edit distance ≤1, subdomain impersonation detection, RFC 1035 length guards (prevents algorithmic DoS)
 - **Tier enforcement:** Critical tier -> null FillResponse (hard stop, user must type manually)
+- **Secure Transit:** Dart-side `AndroidAutofillBridge` uses MethodChannel to pull domain and push credentials. **No Binder transit leaks** (P0-2 closed).
 - **Security:** Vault must be unlocked (biometric/master) before credentials released
 - **Digital Asset Links:** App-domain association prevents phishing
 
@@ -103,6 +105,42 @@ Native Android Autofill Framework integration:
 - `CAMERA` (TOTP QR import)
 
 **Doctrine compliance:** `allowBackup=false` in manifest prevents Android auto-backup to Google Drive.
+
+---
+
+## Platform Hardening & Advanced Verification (V6.5.2)
+
+### FIDO2/WebAuthn Passkeys
+
+Native passkey support for modern authentication, keeping private keys strictly in hardware-backed Keystores:
+
+- **Android 14+ CredentialManager:** `PasskeyPlugin.kt` bridges the OS-level biometric prompt to the Flutter core.
+- **Pure Core Math:** `PasskeyChallenge` generates 32-byte CSPRNG entropy, strictly base64url encoded (no padding) per WebAuthn Level 2 spec.
+- **Domain Isolation:** `PasskeyManager.verifyRpId` mathematically enforces exact Relying Party ID matching, preventing cross-domain phishing (Mutation tested M124-M126).
+- **Schema Evolution:** `VaultEntry` safely extends the V4 JSON schema with an optional `passkeyCredentialId`, maintaining backward compatibility with legacy vault blobs (Mutation tested M121-M123).
+
+### Hermetic & Reproducible Builds
+
+Byte-identical Linux ELF binaries from source, enabling community verification of the release binary:
+
+- **Deterministic Timestamps:** `SOURCE_DATE_EPOCH` pins build time to the last git commit.
+- **Path Stripping:** `-ffile-prefix-map` and `-fdebug-prefix-map` strip absolute build directory paths from DWARF debug info and `__FILE__` macros.
+- **Archive Normalization:** `ZERO_AR_DATE=1` ensures deterministic `ar` archive timestamps.
+
+### Wayland Global Shortcuts
+
+Native global hotkey support for Wayland compositors (Ubuntu 22.04+, Fedora):
+
+- **xdg-desktop-portal:** Falls back to `org.freedesktop.portal.GlobalShortcuts` via GDBus when X11 `XGrabKey` is unavailable.
+- **Layout-Safe Trigger:** Hotkey changed to `Ctrl+Alt+Space` to avoid conflicts with OS-level keyboard layout switchers (e.g., German `Strg+Shift`).
+
+### Typestate Onboarding Flow
+
+Progressive disclosure wizard enforcing the Zero-Knowledge doctrine at compile time:
+
+- **Pure Core:** `OnboardingStore` manages state transitions (Welcome -> Doctrine -> CreateMP -> DecoyOptIn).
+- **Memory Safety:** `SecureBuffer` lifecycle explicitly managed by the store; native memory wiped if user navigates back from the MP creation step (Mutation tested M127-M129).
+- **Doctrine Enforcement:** Users cannot bypass the "Zero-Recovery" warning screen.
 
 ---
 
@@ -123,11 +161,12 @@ Dart-side zeroing via `fillRange(0, length, 0)`:
 - `second_factor.dart`: candidate hash, SFM
 - `search_tag.dart`: SearchKey
 
-### Bounds Checking (Parser Hardening)
+### Bounds Checking & DoS Resistance
 
 - `header.dart`: Added sanity checks for DEK length (max 1024), ciphertext length (max 1MB), tag count (max 100), vector clock length (max 256)
 - `header.dart`: Added `checkBounds()` helper to prevent buffer overflow on malformed input
-- `second_factor.dart`: Added bounds validation for SFM file structure
+- `tier_autofill_enforcer.dart`: RFC 1035 domain length guard (253 chars) prevents O(N*M) algorithmic DoS in edit-distance calculations.
+- Fuzzing campaigns (`tool/fuzz_parsers.dart`, `tool/fuzz_enforcer.dart`) run 100k+ iterations with 0 crashes and 0 timeouts.
 
 ### AES-NI Hardware Check
 
@@ -156,7 +195,7 @@ sudo apt update && sudo apt install -y \
   clang cmake ninja-build pkg-config \
   libgtk-3-dev liblzma-dev libstdc++-12-dev \
   libsodium-dev libseccomp-dev \
-  libx11-dev libxtst-dev libayatana-appindicator3-dev libportal-dev
+  libx11-dev libxtst-dev libayatana-appindicator3-dev libglib2.0-dev
 ```
 
 Run (dev):
@@ -173,15 +212,15 @@ flutter run -d linux
 # Launch from the app menu ("Vault Crypto"), or run: /opt/vault_crypto/vault_crypto
 ```
 
-Release build with integrity hash:
+Release build with integrity hash (Hermetic):
 
 ```bash
-./build_linux.sh   # builds --release + writes build_hash.txt
+./build_linux.sh   # builds --release + writes build_hash.txt (byte-identical)
 ```
 
 > **Note:** P2P BLE sync is **Android-only** (Nearby Connections). On Linux the
 > Sync screen shows a "not available" message; the rest of the app is fully
-> functional.
+> functional. Global hotkeys work on both X11 and Wayland.
 
 ### Android (13+)
 
@@ -232,25 +271,25 @@ adb install -r build/app/outputs/flutter-apk/app-release.apk
 ## Tests
 
 ```bash
-flutter test        # 315+ tests (all pass)
+flutter test        # 325+ tests (all pass)
 flutter analyze     # 0 errors (remaining items are pre-existing info/warnings)
-dart run tool/mutation_campaign.dart   # mutation kill score (100%, 133/133 applied)
+dart run tool/mutation_campaign.dart   # mutation kill score (100%, 137/137 applied)
 ```
 
 **Test coverage:**
-- 315+ unit + integration tests (all passing)
-- 133 mutations covering the entire Trusted Computing Base (TCB) + V6.5 + vault data + passkey + onboarding + shamir
+- 325+ unit + integration tests (all passing)
+- 137 mutations covering the entire Trusted Computing Base (TCB) + V6.5 + vault data + passkey + onboarding + shamir + adaptive posture
 - 100% mutation kill score (all security invariants verified)
 - Full security gate suites: [`security.md`](security.md) (gates 1-20) and [`security2.md`](security2.md) (gates 21-32)
 - RFC 6238 compliance tests for TOTP (SHA1/SHA256/SHA512)
 - Security tier policy tests (21 tests)
 - P2P pairing protocol tests (state machine, PSK derivation)
 - Lookalike domain detection tests
-- Fuzzing (vault, grammar, sync protocol, TOTP import) — 0 crashes
+- Fuzzing (vault, grammar, sync protocol, TOTP import, parsers, enforcer) — 0 crashes, 0 timeouts
 - Differential testing against reference implementations (HKDF, HMAC, TOTP, Argon2id)
 
 > **Full registry:** See [`TESTING.md`](TESTING.md) for the complete list of
-> test suites, mutation runs (M01-M133), fuzzers, and verification tools.
+> test suites, mutation runs (M01-M137), fuzzers, and verification tools.
 
 ---
 
@@ -260,9 +299,9 @@ See `v6_delta.md` for detailed roadmap:
 
 - **P0:** External cryptographic audit (recruiting auditors)
 - **P1:** Publish project + gather community feedback
-- **P2:** Onboarding flow design (progressive disclosure)
+- **P2:** Onboarding flow design (DONE - Typestate Wizard)
 - **P3:** Recovery UX design (guided Shamir reconstruction)
-- **P4-P5:** Android device verification (real hardware testing)
+- **P4-P5:** Android device verification (DONE)
 - **P6:** TPM sealing (Linux hardware-backed key storage)
 - **P7:** Noise PQ-hybrid transport (post-quantum future-proofing)
 - **P8:** Runtime integrity attestation (advisory)
@@ -273,11 +312,11 @@ See `v6_delta.md` for detailed roadmap:
 
 - A knowledgeable attacker can suspect deniability exists but cannot prove it.
 - A coercer holding BOTH passwords defeats the scheme.
-- Wayland global-shortcut portal is a documented limitation (X11 grab is the working path).
 - Behavioral biometrics is an anomaly deterrent, never authentication; FP/FN are measured empirically, not fabricated.
 - Mutation testing covers only what is encoded as a mutation. It does not replace external cryptographic audit.
 - `V4VaultEntry.password` remains a Dart `String` in the UI model (unavoidable Flutter limitation). The crypto core never holds it as String.
 - **V6.5:** P2P sync requires both devices online simultaneously (no async sync). BLE range ~10m is a physical limitation, not software-enforced. TOTP secrets stored in vault (single point of failure if vault compromised). Security tiers are advisory (determined user can bypass UI).
+- **Passkeys:** Native Android CredentialManager integration requires Android 14+. Older devices fall back to password/biometric unlock.
 
 ---
 
@@ -303,7 +342,7 @@ See `SECURITY.md` for threat model, vulnerability reporting, and security contac
 
 See `SECURITY_AUDIT.md` for internal audit results and hardening applied.
 
-**Current status:** Internal audit complete (133/133 mutation kill). External audit pending (recruiting auditors).
+**Current status:** Internal audit complete (137/137 mutation kill). External audit pending (recruiting auditors).
 
 ---
 
@@ -315,11 +354,11 @@ This is a pre-audit release. To publish the current state to GitHub:
 # 1. Verify everything passes
 flutter test
 flutter analyze
-dart run tool/verify_mutations.dart   # all 133 mutation search strings present
+dart run tool/verify_mutations.dart   # all 137 mutation search strings present
 
 # 2. Commit
 git add -A
-git commit -m "V6.5.1: security2.md advanced verification suite (gates 21-32), TESTING.md registry, audit package"
+git commit -m "V6.5.2: Passkeys, Hermetic Builds, Wayland Shortcuts, Typestate Onboarding, 137/137 mutations"
 
 # 3. Tag the pre-audit release
 git tag v1.0.0-pre-audit

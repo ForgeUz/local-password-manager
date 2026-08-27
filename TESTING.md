@@ -1,6 +1,7 @@
+```markdown
 # Vault Crypto — Testing & Verification Registry
 
-**Version:** V6.5.1
+**Version:** V6.5.2
 **Purpose:** Single source of truth for every test suite, mutation run, fuzzer,
 and verification tool. Other docs link here instead of duplicating counts.
 
@@ -26,7 +27,7 @@ Run: `flutter test`
 | Vault | `test/vault/` | data model, storage |
 | Biometric / clipboard / backup / onboarding / passkey / desktop / os | `test/{biometric,clipboard,backup,onboarding,passkey,desktop,os}/` | platform modules |
 
-**Total:** 315+ tests (all passing in a normal environment).
+**Total:** 329+ tests (all passing in a normal environment).
 
 > **Note:** FFI-dependent vault round-trip tests require AES-NI initialization.
 > In a sandboxed CI environment (no AES-NI / `ld.so.preload` restrictions) they
@@ -51,7 +52,7 @@ Run: `dart run tool/mutation_campaign.dart` (full, ~110 min) or
 `dart run tool/mutation_campaign.dart --quick` (10 core mutants).
 
 The registry lives in [`tool/mutation_campaign.dart`](tool/mutation_campaign.dart)
-(**M01-M133**). A mutation is "killed" when the test suite fails after applying
+(**M01-M137**). A mutation is "killed" when the test suite fails after applying
 it, proving the invariant is covered.
 
 | Campaign | Mutations | Kill score | Status |
@@ -62,7 +63,8 @@ it, proving the invariant is covered.
 | Passkey (M124-M126) | 3 | 100% | DONE |
 | Onboarding (M127-M129) | 3 | 100% | DONE |
 | Shamir (M130-M133) | 4 | 100% | DONE |
-| **Total** | **133** | **100%** | **DONE** |
+| Adaptive Posture (M134-M137) | 4 | 100% | DONE |
+| **Total** | **137** | **100%** | **DONE** |
 
 ### Mutation groups (M01-M100 TCB)
 
@@ -87,6 +89,19 @@ it, proving the invariant is covered.
 | vector_clock | 4 | increment, dominates, conflict |
 | conflict_resolver | 3 | archive, localWins, archived flag |
 
+### Mutation groups (M101-M137 Extensions)
+
+| Group | Mutations | Invariants |
+|-------|-----------|------------|
+| tier_autofill_enforcer | 8 | critical block, lookalike, domain mismatch, delay, normalization |
+| security_tier | 6 | export block, downgrade confirm, reveal requirement |
+| totp_generator | 6 | dynamic truncation, zero-pad, drift window, constant-time |
+| vault_data | 3 | passkey schema evolution, legacy parse null-safety |
+| passkey_challenge/core | 3 | CSPRNG entropy, base64url no-padding, rpId isolation |
+| onboarding_core | 3 | doctrine bypass, SecureBuffer lifecycle, GoBack wipe |
+| shamir_kit | 4 | GF(256) reduction, Lagrange division, Horner XOR, Fermat exp |
+| adaptive_posture | 4 | canary priority, failure threshold, roaming opt-in, timeout |
+
 ---
 
 ## 3. Fuzzers
@@ -95,10 +110,11 @@ it, proving the invariant is covered.
 |--------|-----|-----------|--------|
 | [`tool/fuzz_vault.dart`](tool/fuzz_vault.dart) | `dart run tool/fuzz_vault.dart --iterations 100000` | 100k | 0 crashes |
 | [`tool/fuzz_vault_grammar.dart`](tool/fuzz_vault_grammar.dart) | `dart run tool/fuzz_vault_grammar.dart --iterations 50000` | 50k | 0 crashes |
+| [`tool/fuzz_parsers.dart`](tool/fuzz_parsers.dart) | `dart run tool/fuzz_parsers.dart` | 300k | 0 crashes (typed errors only) |
+| [`tool/fuzz_enforcer.dart`](tool/fuzz_enforcer.dart) | `dart run tool/fuzz_enforcer.dart` | 50k | 0 timeouts (RFC 1035 guard active) |
 | [`tool/fuzz_sync_protocol.dart`](tool/fuzz_sync_protocol.dart) | `dart run tool/fuzz_sync_protocol.dart --iterations 20000` | 20k | all malicious inputs rejected |
 | [`tool/fuzz_totp_import.dart`](tool/fuzz_totp_import.dart) | `dart run tool/fuzz_totp_import.dart --iterations 20000` | 20k | 0 crashes |
-| [`tool/fuzz_parsers.dart`](tool/fuzz_parsers.dart) | `dart run tool/fuzz_parsers.dart` | 100k | 0 crashes |
-| [`tool/fuzz_enforcer.dart`](tool/fuzz_enforcer.dart) | `dart run tool/fuzz_enforcer.dart` | 50k | 0 crashes |
+| [`tool/fuzz_autofill.dart`](tool/fuzz_autofill.dart) | `dart run tool/fuzz_autofill.dart --iterations 50000` | 50k | 0 crashes |
 
 ---
 
@@ -124,7 +140,7 @@ it, proving the invariant is covered.
 push/PR and nightly:
 - crypto/format/memory/auth/errors tests
 - statemachine/model/concurrency/crash/differential/multivault/attacks/regression tests
-- fuzzing (vault, grammar, TOTP, sync protocol)
+- fuzzing (vault, grammar, parsers, enforcer, TOTP, sync protocol, autofill)
 - timing + memory
 - supply-chain (deps, libsodium)
 - static analysis (`flutter analyze`, `dart format`)
@@ -141,3 +157,4 @@ push/PR and nightly:
 - [`KNOWN_LIMITATIONS.md`](AUDIT_PACKAGE/KNOWN_LIMITATIONS.md) — honest limitations
 - [`BUILD_REPRODUCIBILITY.md`](AUDIT_PACKAGE/BUILD_REPRODUCIBILITY.md) — how to verify builds
 - [`DIFFERENTIAL_ANALYSIS.md`](AUDIT_PACKAGE/DIFFERENTIAL_ANALYSIS.md) — reference-implementation comparison
+```

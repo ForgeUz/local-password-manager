@@ -1247,6 +1247,42 @@ final List<Mutation> ALL_MUTATIONS = <Mutation>[
     replace: 'var exp = 255; // MUTATION: Fermat exponent wrong',
   ),
 
+  // ----------------------------------------------------------
+  // GROUP 34: adaptive_posture.dart (Rule Engine) (4)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M134',
+    group: 'adaptive_posture',
+    invariant: 'Canary triggered -> lockdown (priority override)',
+    file: 'lib/src/security/adaptive_posture.dart',
+    search: 'if (canaryTriggered) {',
+    replace: 'if (false) { // MUTATION: canary check bypassed',
+  ),
+  Mutation(
+    id: 'M135',
+    group: 'adaptive_posture',
+    invariant: 'Failure threshold >= 2 escalates to high',
+    file: 'lib/src/security/adaptive_posture.dart',
+    search: 'if (recentFailures >= _failureThreshold) {',
+    replace: 'if (recentFailures >= 3) { // MUTATION: threshold raised to 3',
+  ),
+  Mutation(
+    id: 'M136',
+    group: 'adaptive_posture',
+    invariant: 'Unknown network escalates ONLY when strictRoamingEnabled',
+    file: 'lib/src/security/adaptive_posture.dart',
+    search: 'if (!networkRecognized && strictRoamingEnabled) {',
+    replace: 'if (!networkRecognized) { // MUTATION: roaming always escalates',
+  ),
+  Mutation(
+    id: 'M137',
+    group: 'adaptive_posture',
+    invariant: 'High posture -> autoLockTimeout = 30 seconds',
+    file: 'lib/src/security/adaptive_posture.dart',
+    search: 'autoLockTimeout: const Duration(seconds: 30),',
+    replace: 'autoLockTimeout: const Duration(minutes: 5), // MUTATION: timeout too long',
+  ),
+
 ];
 
 

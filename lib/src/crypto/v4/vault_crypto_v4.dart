@@ -80,6 +80,7 @@ class V4VaultEntry {
   final int tier;
   final bool isCanary; // internal flag, only in decrypted payload
   final int updatedAt; // epoch millis, for password-age tracking
+  String? passkeyCredentialId; // Opaque FIDO2 handle (public data)
 
   V4VaultEntry({
     required this.id,
@@ -91,6 +92,7 @@ class V4VaultEntry {
     required this.tier,
     this.isCanary = false,
     this.updatedAt = 0,
+    this.passkeyCredentialId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -102,6 +104,7 @@ class V4VaultEntry {
         'domain': domain,
         'tier': tier,
         if (isCanary) 'isCanary': true,
+        if (passkeyCredentialId != null) 'passkeyCredentialId': passkeyCredentialId,
         if (updatedAt != 0) 'updatedAt': updatedAt,
       };
 
@@ -116,6 +119,7 @@ class V4VaultEntry {
       tier: (json['tier'] ?? 0) as int,
       isCanary: (json['isCanary'] ?? false) as bool,
       updatedAt: (json['updatedAt'] ?? 0) as int,
+      passkeyCredentialId: json['passkeyCredentialId'] as String?,
     );
   }
 }

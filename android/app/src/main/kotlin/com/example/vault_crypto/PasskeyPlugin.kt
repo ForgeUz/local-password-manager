@@ -11,7 +11,8 @@ package com.example.vault_crypto
 import android.app.Activity
 import androidx.credentials.CreatePublicKeyCredentialRequest
 import androidx.credentials.CredentialManager
-import androidx.credentials.GetPublicKeyCredentialRequest
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.GetPublicKeyCredentialOption
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -86,8 +87,9 @@ class PasskeyPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 val response = cm.createCredential(act, request)
-                val responseJson = JSONObject(response.credential.data)
-                // "id" in the response JSON is the base64url encoded credential ID
+                // ИСПРАВЛЕНО: Правильное извлечение JSON из Bundle
+                val regJson = response.data.getString("androidx.credentials.BUNDLE_KEY_REGISTRATION_RESPONSE_JSON")
+                val responseJson = JSONObject(regJson ?: "")
                 val rawId = responseJson.getString("id")
                 result.success(rawId)
             } catch (e: Exception) {
@@ -119,16 +121,22 @@ class PasskeyPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
             put("userVerification", "required")
         }
 
-        val request = GetPublicKeyCredentialRequest(json.toString())
+        // ИСПРАВЛЕНО: Используем GetCredentialRequest с GetPublicKeyCredentialOption
+        val option = GetPublicKeyCredentialOption(json.toString(), null)
+        val request = GetCredentialRequest(listOf(option))
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
                 val response = cm.getCredential(act, request)
-                val responseJson = JSONObject(response.credential.data)
+                // ИСПРАВЛЕНО: Правильное извлечение JSON из Bundle
+                val authJson = response.credential.data.getString("androidx.credentials.BUNDLE_KEY_AUTHENTICATION_RESPONSE_JSON")
+                val responseJson = JSONObject(authJson ?: "")
+                
                 val usedCredId = responseJson.getString("id")
-                val signature = responseJson.getJSONObject("response").optString("signature", "")
-                val authenticatorData = responseJson.getJSONObject("response").optString("authenticatorData", "")
-                val clientDataJSON = responseJson.getJSONObject("response").optString("clientDataJSON", "")
+                val respObj = responseJson.getJSONObject("response")
+                val signature = respObj.optString("signature", "")
+                val authenticatorData = respObj.optString("authenticatorData", "")
+                val clientDataJSON = respObj.optString("clientDataJSON", "")
                 
                 result.success(mapOf(
                     "credentialId" to usedCredId,
