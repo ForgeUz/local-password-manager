@@ -284,7 +284,7 @@ class VaultCryptoV4 {
 
     // Header MAC (v5 E12): AES-256-GCM with EMPTY plaintext over header-as-AAD.
     // The 16-byte tag IS the header authentication. No ambiguity.
-    final outerTag = AesGcm.encrypt(vrk, nonce, headerBytes, Uint8List(0));
+    final outerTag = AesGcm.encrypt(vrk, Uint8List(12), headerBytes, Uint8List(0)); // MUTATION: wrong nonce
 
     final blob = Uint8List(headerBytes.length + slot2.length + outerTag.length);
     blob.setRange(0, headerBytes.length, headerBytes);

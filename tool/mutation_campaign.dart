@@ -1126,7 +1126,129 @@ final List<Mutation> ALL_MUTATIONS = <Mutation>[
     search: 'return binary % _pow10(digits);',
     replace: 'return binary; // MUTATION: no modulo (raw 31-bit value)',
   ),
+
+  // ----------------------------------------------------------
+  // GROUP 30: vault_data.dart (V4 Schema Evolution / Passkey) (3)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M121',
+    group: 'vault_data',
+    invariant: 'VaultEntry serializes passkeyCredentialId',
+    file: 'lib/src/vault/vault_data.dart',
+    search: "'passkeyCredentialId': passkeyCredentialId,",
+    replace: '// MUTATION: passkeyCredentialId not serialized',
+  ),
+  Mutation(
+    id: 'M122',
+    group: 'vault_data',
+    invariant: 'VaultEntry parses missing passkeyCredentialId as null (backward compat)',
+    file: 'lib/src/vault/vault_data.dart',
+    search: "passkeyCredentialId: json['passkeyCredentialId'] as String?,",
+    replace: "passkeyCredentialId: json['passkeyCredentialId'] as String, // MUTATION: throws on null",
+  ),
+  Mutation(
+    id: 'M123',
+    group: 'vault_data',
+    invariant: 'VaultData round-trips entries correctly',
+    file: 'lib/src/vault/vault_data.dart',
+    search: "'entries': entries.map((e) => e.toJson()).toList(),",
+    replace: "'entries': [], // MUTATION: drops all entries",
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 31: passkey_challenge.dart & passkey_core.dart (3)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M124',
+    group: 'passkey_challenge',
+    invariant: 'Challenge generates >= 32 bytes of entropy',
+    file: 'lib/src/passkey/passkey_challenge.dart',
+    search: 'List.generate(byteLength, (_) => random.nextInt(256)),',
+    replace: 'List.generate(16, (_) => random.nextInt(256)), // MUTATION: weak entropy (16 bytes)',
+  ),
+  Mutation(
+    id: 'M125',
+    group: 'passkey_challenge',
+    invariant: 'Challenge strips base64 padding (WebAuthn compliance)',
+    file: 'lib/src/passkey/passkey_challenge.dart',
+    search: "return base64UrlEncode(bytes).replaceAll('=', '');",
+    replace: 'return base64UrlEncode(bytes); // MUTATION: leaves padding',
+  ),
+  Mutation(
+    id: 'M126',
+    group: 'passkey_core',
+    invariant: 'verifyRpId enforces exact domain match (FIDO2 isolation)',
+    file: 'lib/src/passkey/passkey_core.dart',
+    search: 'return storedRpId == requestedRpId;',
+    replace: 'return true; // MUTATION: bypass domain isolation',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 32: onboarding_core.dart (Typestate Wizard) (3)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M127',
+    group: 'onboarding_core',
+    invariant: 'Cannot bypass Doctrine (Zero-Knowledge warning)',
+    file: 'lib/src/onboarding/onboarding_core.dart',
+    search: 'if (state is OnboardingDoctrine && intent is AcceptDoctrine) return OnboardingCreateMP();',
+    replace: 'return OnboardingDone(createDecoy: false); // MUTATION: skips MP creation',
+  ),
+  Mutation(
+    id: 'M128',
+    group: 'onboarding_core',
+    invariant: 'SubmitMP stores the SecureBuffer',
+    file: 'lib/src/onboarding/onboarding_core.dart',
+    search: '_mp = intent.mp;',
+    replace: '_mp = null; // MUTATION: drops submitted MP',
+  ),
+  Mutation(
+    id: 'M129',
+    group: 'onboarding_core',
+    invariant: 'GoBack from CreateMP wipes MP reference (memory leak prevention)',
+    file: 'lib/src/onboarding/onboarding_core.dart',
+    search: '      _mp = null;\n    }\n    final newState = _reduce(_state, intent);',
+    replace: '      // MUTATION: reference not cleared\n    }\n    final newState = _reduce(_state, intent);',
+  ),
+
+  // ----------------------------------------------------------
+  // GROUP 33: shamir_kit.dart (GF(256) Math) (4)
+  // ----------------------------------------------------------
+  Mutation(
+    id: 'M130',
+    group: 'shamir_kit',
+    invariant: 'GF(256) multiplication reduction mod 0x11b',
+    file: 'lib/src/security/shamir_kit.dart',
+    search: 'if ((a & 0x100) != 0) a ^= _GF_POLY;',
+    replace: '// MUTATION: GF(256) reduction bypassed',
+  ),
+  Mutation(
+    id: 'M131',
+    group: 'shamir_kit',
+    invariant: 'Lagrange basis uses GF division (not multiply)',
+    file: 'lib/src/security/shamir_kit.dart',
+    search: 'final factor = _gfDiv(shares[j].x, denom);',
+    replace: 'final factor = _gfMul(shares[j].x, denom); // MUTATION: Lagrange uses multiply',
+  ),
+  Mutation(
+    id: 'M132',
+    group: 'shamir_kit',
+    invariant: 'Horner evaluation uses XOR (not integer addition)',
+    file: 'lib/src/security/shamir_kit.dart',
+    search: 'y = _gfMul(y, x) ^ coeff[i];',
+    replace: 'y = _gfMul(y, x) + coeff[i]; // MUTATION: uses integer addition',
+  ),
+  Mutation(
+    id: 'M133',
+    group: 'shamir_kit',
+    invariant: 'Fermat inverse uses exponent 254 (not 255)',
+    file: 'lib/src/security/shamir_kit.dart',
+    search: 'var exp = 254;',
+    replace: 'var exp = 255; // MUTATION: Fermat exponent wrong',
+  ),
+
 ];
+
 
 
 // ============================================================

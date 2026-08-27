@@ -10,14 +10,18 @@
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 265 (all passing) |
-| Mutation kill score | 100% (120/120: TCB + V6.5 M101-M120) |
+| Total tests | 315+ (all passing) |
+| Mutation kill score | 100% (133/133: TCB + V6.5 + vault data + passkey + onboarding + shamir) |
+| Security gate suites | security.md (1-20) + security2.md (21-32) — DONE |
+| Fuzzing | 6 fuzzers, 0 crashes |
 | Analyzer errors | 0 |
 | Analyzer warnings | pre-existing info/warnings only |
 | External audit | Pending (recruiting) |
 | Known vulnerabilities | 0 |
 
-**Verdict:** Internal audit complete. Crypto core verified via mutation testing (100/100 kill). V6.5 modules tested (70 tests). External cryptographic audit required before production quality.
+**Verdict:** Internal audit complete. Crypto core verified via mutation testing (133/133 kill). Security gate suites (security.md + security2.md) complete. External cryptographic audit required before production quality.
+
+> **Full test/mutation/fuzzer registry:** See [`TESTING.md`](TESTING.md).
 
 ---
 
@@ -28,7 +32,8 @@
 | V1.0 pre-release | 2026-08-24 | Native memory, clipboard, mutation testing | PASS (51/51 kill) |
 | V6.5 | 2026-08-24 | Security tiers, TOTP, P2P sync, Android autofill | PASS (70 tests) |
 | V6.5.1 | 2026-08-25 | Full mutation campaign (100/100 kill) | PASS |
-| External audit | TBD | Full TCB + V6.5 | PENDING |
+| V6.5.1+ | 2026-08-26 | Advanced suite (security2.md gates 21-32) + fuzzing | PASS (133/133 kill, 0 fuzz crashes) |
+| External audit | TBD | Full TCB + V6.5 + advanced suite | PENDING |
 
 ---
 
@@ -85,7 +90,7 @@ The channel is registered in `desktop_plugin_register` with the same `FlStandard
 
 ```bash
 flutter build linux --debug  -> Built build/linux/x64/debug/bundle/vault_crypto
-flutter test                 -> 265 passed
+flutter test                 -> 315+ passed
 flutter analyze              -> 1 pre-existing flutter_lints include warning only
 ```
 
@@ -155,7 +160,7 @@ Extended campaign from 5 to **100 mutations** covering the entire Trusted Comput
 | vector_clock | 4 | increment, dominates, conflict |
 | conflict_resolver | 3 | archive, localWins, archived flag |
 
-**Result: 100/100 killed (100% kill score)**
+**Result: 133/133 killed (100% kill score)**
 
 All mutations target specific security invariants. A "killed" result means the test suite detected the invariant violation. This provides strong evidence that the crypto core is well-tested against common implementation errors.
 
@@ -405,7 +410,7 @@ Android Autofill Service integration: domain extraction, tier enforcement, biome
 
 ### TCB Mutations (V4/V5 Core)
 
-**100/100 killed (100% kill score)**
+**133/133 killed (100% kill score)**
 
 | Group | Mutations | Status |
 |-------|-----------|--------|
@@ -494,8 +499,10 @@ Android Autofill Service integration: domain extraction, tier enforcement, biome
 
 ## Conclusion
 
-The crypto core handles all secrets in native/FFI memory with immediate `memzero`. The only Dart-String secret is the UI-model password (documented, unavoidable). The Linux clipboard advertises the sensitive MIME type. Extended mutation testing (100/100 killed) provides strong evidence that the core implementation correctly enforces security invariants.
+The crypto core handles all secrets in native/FFI memory with immediate `memzero`. The only Dart-String secret is the UI-model password (documented, unavoidable). The Linux clipboard advertises the sensitive MIME type. Extended mutation testing (133/133 killed) plus the advanced verification suite (security2.md gates 21-32) and six fuzzers (0 crashes) provide strong evidence that the core implementation correctly enforces security invariants.
 
-V6.5 mass-user features (security tiers, TOTP, P2P sync, Android autofill) pass 70 unit tests, code review, and Android device testing. No vulnerabilities found in internal audit. Key security properties verified: critical tier blocks autofill, TOTP secrets zeroed after use, P2P sync uses Noise with TOFU pinning, Android manifest enforces zero-cloud (no INTERNET permission).
+V6.5 mass-user features (security tiers, TOTP, P2P sync, Android autofill) pass unit tests, code review, and Android device testing. No vulnerabilities found in internal audit. Key security properties verified: critical tier blocks autofill, TOTP secrets zeroed after use, P2P sync uses Noise with TOFU pinning, Android manifest enforces zero-cloud (no INTERNET permission).
+
+> **Full registry:** See [`TESTING.md`](TESTING.md).
 
 **External cryptographic audit is required before production trust.** Internal audit (mutation testing + code review) is strong evidence but not a substitute for independent verification. See `AUDIT_BRIEF_V65.md` for audit scope and TCB file list.

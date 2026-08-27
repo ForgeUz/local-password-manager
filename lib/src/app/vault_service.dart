@@ -26,6 +26,7 @@ import '../security/shamir_kit.dart';
 import '../security/security_dashboard.dart';
 import '../vault/vault_data.dart';
 import '../vault/vault_storage.dart';
+import '../passkey/passkey_core.dart';
 
 // Export result: CSV text plus an optional MP-strength warning (warn, not
 // block). The submitted MP must still derive the held VRK (fresh re-auth).
@@ -340,10 +341,53 @@ class VaultService implements Lockable {
         }
       }
     }
+
     return results;
   }
 
+  // Expose UI-model entry for autofill bridge. Returns null if locked/canary/missing.
+  VaultEntry? getVaultEntry(String id) {
+    if (_vrk == null) return null;
+    final idx = _entries.indexWhere((e) => e.id == id);
+    if (idx < 0) return null;
+    if (_entries[idx].isCanary) return null;
+    return VaultEntry(
+      id: _entries[idx].id,
+      title: _entries[idx].title,
+      username: _entries[idx].username,
+      password: _entries[idx].password,
+      url: _entries[idx].url,
+    );
+  }
+
+  int? getEntryTier(String id) {
+    if (_vrk == null) return null;
+    final idx = _entries.indexWhere((e) => e.id == id);
+    if (idx < 0 || _entries[idx].isCanary) return null;
+    return _entries[idx].tier;
+  }
+
+  // P3: Attach a FIDO2 passkey credentialId to an existing vault entry.
+  // The private key remains in the Android Keystore. Triggers relock.
+  Future<void> attachPasskey(String entryId, String credentialId) async {
+    if (_vrk == null) return;
+    final idx = _entries.indexWhere((e) => e.id == entryId);
+    if (idx < 0) return;
+    _entries[idx].passkeyCredentialId = credentialId;
+    _currentBlob = await _crypto.relock(_vrk!.readBytes(), _entries, salt: _blobSalt);
+    await _storage.writeBlob(_currentBlob!);
+    await _snapshots.saveSnapshot(_currentBlob!);
+  }
+
+  // P3: Check if an entry has a passkey attached.
+  bool hasPasskey(String entryId) {
+    final idx = _entries.indexWhere((e) => e.id == entryId);
+    if (idx < 0) return false;
+    return _entries[idx].passkeyCredentialId != null;
+  }
+
   static bool _constTimeEq(Uint8List a, Uint8List b) {
+
     if (a.length != b.length) return false;
     var diff = 0;
     for (var i = 0; i < a.length; i++) {

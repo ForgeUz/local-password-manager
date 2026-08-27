@@ -15,6 +15,7 @@ import 'src/vault/vault_storage.dart';
 import 'src/desktop/native_linux.dart';
 import 'src/desktop/tray_controller.dart';
 import 'src/desktop/hotkey_controller.dart';
+import 'src/autofill/android_autofill_bridge.dart'; 
 import 'screens/corrupt_blob_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/mini_search_screen.dart';
@@ -181,7 +182,8 @@ class _LockObserver extends NavigatorObserver {
 class _VaultAppState extends State<VaultApp> {
   late final LifecycleController _lifecycle;
   late final PostureTimer _postureTimer;
-  late final _LockObserver _lockObserver; // Добавь это
+  late final _LockObserver _lockObserver; 
+  AndroidAutofillBridge? _autofillBridge; 
   TrayController? _tray;
   HotkeyController? _hotkey;
   BuildContext? _context;
@@ -229,6 +231,10 @@ class _VaultAppState extends State<VaultApp> {
       _hotkey!.register();
     }
 
+    
+    // Android autofill bridge: handles MethodChannel from VaultAutofillService
+    _autofillBridge = AndroidAutofillBridge(store: widget.store, service: widget.service);
+ 
     widget.store.stateStream.listen((state) {
       _tray?.onStateChanged(state);
       if (state is Unlocked) {

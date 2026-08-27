@@ -1,0 +1,74 @@
+name: Security Verification
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 2 * * *' # nightly
+
+jobs:
+  crypto-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: flutter test test/security/crypto/
+      - run: flutter test test/security/format/
+      - run: flutter test test/security/memory/
+      - run: flutter test test/security/auth/
+      - run: flutter test test/security/errors/
+
+  statemachine-model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: flutter test test/security/statemachine/
+      - run: flutter test test/security/model/
+      - run: flutter test test/security/concurrency/
+      - run: flutter test test/security/crash/
+      - run: flutter test test/security/differential/
+      - run: flutter test test/security/multivault/
+      - run: flutter test test/security/attacks/
+      - run: flutter test test/security/regression/
+
+  fuzzing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: dart run tool/fuzz_vault.dart --iterations 10000
+      - run: dart run tool/fuzz_vault_grammar.dart --iterations 10000
+      - run: dart run tool/fuzz_totp_import.dart --iterations 5000
+      - run: dart run tool/fuzz_sync_protocol.dart --iterations 5000
+
+  timing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: flutter test test/security/runtime/test_timing.dart
+      - run: dart run tool/timing_cache.dart
+
+  memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: dart run tool/memory_dump.dart
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: dart run tool/verify_deps.dart
+      - run: dart run tool/verify_libsodium.dart
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: flutter analyze
+      - run: dart format --set-exit-if-changed lib/

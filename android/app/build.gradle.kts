@@ -70,8 +70,13 @@ android {
 dependencies {
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("com.google.android.gms:play-services-nearby:19.3.0")
+    // P3: FIDO2/WebAuthn passkey support via Android 14+ CredentialManager
+    implementation("androidx.credentials:credentials:1.2.2")
+    // P3: Fallback to Google Password Manager for devices without native OS passkey support
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+    // P3: Coroutines for async CredentialManager calls
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
-
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

@@ -1,31 +1,46 @@
-import 'dart:typed_data';
+// File: test/security/shamir_kit_test.dart
+// Intent: Kill-tests for Shamir Secret Sharing GF(256) math (M130-M133).
+// Invariants:
+// - Any K of N shares reconstruct the original secret.
+// - Fewer than K shares produce garbage (threshold enforcement).
+// - Share encode/decode round-trip preserves data.
 
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vault_crypto/src/security/shamir_kit.dart';
 
-// Intent: Verify ShamirKit splits a secret into N shares and reconstructs it
-// from any K shares (SLIP-39 style, GF(256)). Opt-in recovery primitive.
 void main() {
-  test('split then reconstruct with all N shares returns the secret', () {
-    final mk = Uint8List.fromList(List.generate(32, (i) => (i * 7 + 3) % 256));
-    final shares = ShamirKit.split(mk, n: 5, k: 3);
-    expect(shares.length, 5);
-    final recovered = ShamirKit.reconstruct(shares);
-    expect(recovered, equals(mk));
-  });
+  group('M130-M133: Shamir split/reconstruct round-trip', () {
+    test('3-of-5 reconstructs original secret', () {
+      final secret = Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+      final shares = ShamirKit.split(secret, n: 5, k: 3);
+      
+      final subset = [shares[0], shares[2], shares[4]];
+      final reconstructed = ShamirKit.reconstruct(subset);
+      
+      expect(reconstructed, equals(secret));
+    });
 
-  test('reconstruct works with any K of N shares', () {
-    final mk = Uint8List.fromList(List.generate(32, (i) => (i * 13 + 1) % 256));
-    final shares = ShamirKit.split(mk, n: 5, k: 3);
-    // Use only the first 3 shares.
-    final recovered = ShamirKit.reconstruct(shares.sublist(0, 3));
-    expect(recovered, equals(mk));
-  });
+    test('2-of-5 fails to reconstruct (threshold enforcement)', () {
+      final secret = Uint8List.fromList([255, 128, 64, 32]);
+      final shares = ShamirKit.split(secret, n: 5, k: 3);
+      
+      final subset = [shares[1], shares[3]];
+      final reconstructed = ShamirKit.reconstruct(subset);
+      
+      expect(reconstructed, isNot(equals(secret)));
+    });
 
-  test('reconstruct fails with fewer than K shares', () {
-    final mk = Uint8List.fromList(List.generate(32, (i) => (i * 3 + 9) % 256));
-    final shares = ShamirKit.split(mk, n: 5, k: 3);
-    final recovered = ShamirKit.reconstruct(shares.sublist(0, 2));
-    expect(recovered, isNot(equals(mk)));
+    test('Share encode/decode round-trip', () {
+      final secret = Uint8List.fromList([42, 84, 126]);
+      final shares = ShamirKit.split(secret, n: 2, k: 2);
+      
+      for (final s in shares) {
+        final encoded = ShamirKit.encodeShare(s);
+        final decoded = ShamirKit.parseShare(encoded);
+        expect(decoded.x, equals(s.x));
+        expect(decoded.y, equals(s.y));
+      }
+    });
   });
 }

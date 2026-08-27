@@ -57,7 +57,7 @@ The channel is registered in `desktop_plugin_register` with the same `FlStandard
 
 ```bash
 flutter build linux --debug  -> Built build/linux/x64/debug/bundle/vault_crypto
-flutter test                 -> 265 passed
+flutter test                 -> 315+ passed
 flutter analyze              -> 1 pre-existing flutter_lints include warning only
 ```
 
@@ -104,7 +104,7 @@ Dart-side zeroing via `fillRange(0, length, 0)`:
 
 ### Mutation Campaign Results
 
-Extended campaign from 5 to **100 mutations** covering the entire Trusted Computing Base (TCB):
+Extended campaign from 5 to **133 mutations** covering the entire Trusted Computing Base (TCB) plus V6.5 modules, vault data, passkey, onboarding, and shamir:
 
 | Group | Mutations | Invariants Tested |
 |-------|-----------|-------------------|
@@ -127,9 +127,23 @@ Extended campaign from 5 to **100 mutations** covering the entire Trusted Comput
 | vector_clock | 4 | increment, dominates, conflict |
 | conflict_resolver | 3 | archive, localWins, archived flag |
 
-**Result: 100/100 killed (100% kill score)**
+**Result: 133/133 killed (100% kill score)**
 
 All mutations target specific security invariants. A "killed" result means the test suite detected the invariant violation. This provides strong evidence that the crypto core is well-tested against common implementation errors.
+
+### Advanced Verification Suite (security2.md gates 21-32)
+
+Beyond the mutation campaign, the advanced suite adds:
+- **State machine testing** (vault + sync) — atomicity, no handshake skip, cooldown.
+- **Model-based testing** — differential HKDF/HMAC against a pure-Dart RFC 5869 reference (100 vectors).
+- **Grammar-based fuzzing** — structure-aware vault mutations (50k, 0 crashes).
+- **Sync protocol fuzzing** — MITM handshake/replay/out-of-sequence (20k, all rejected).
+- **TOTP import fuzzing** — malformed otpauth:// URIs (20k, 0 crashes).
+- **Concurrency & crash consistency** — lock races, power-loss atomic writes, FS edge cases.
+- **Differential testing** — TOTP RFC 6238 (SHA1/SHA256/SHA512), Argon2id parameters.
+- **Supply chain** — dependency pinning, build reproducibility, libsodium provenance.
+- **Statistical timing** — KS test, Welch's t-test, Cohen's d (no oracle).
+- **Attack simulation** — sync MITM, clipboard poisoning.
 
 ### Remaining Limitations
 
@@ -137,8 +151,10 @@ All mutations target specific security invariants. A "killed" result means the t
 - `V4VaultEntry.password` remains a Dart `String` in the UI model (unavoidable Flutter limitation). The crypto core never holds it as String.
 - Equivalent mutants (security-only, not functional) are documented but not counted as gaps.
 
+> **Full registry:** See [`TESTING.md`](TESTING.md).
+
 ---
 
 ## Conclusion
 
-The crypto core handles all secrets in native/FFI memory with immediate `memzero`. The only Dart-String secret is the UI-model password (documented, unavoidable). The Linux clipboard now advertises the sensitive MIME type so clipboard managers do not log password history. Extended mutation testing (100/100 killed) provides strong evidence that the implementation correctly enforces security invariants across the entire TCB.
+The crypto core handles all secrets in native/FFI memory with immediate `memzero`. The only Dart-String secret is the UI-model password (documented, unavoidable). The Linux clipboard now advertises the sensitive MIME type so clipboard managers do not log password history. Extended mutation testing (133/133 killed) plus the advanced verification suite (security2.md gates 21-32) and six fuzzers (0 crashes) provide strong evidence that the implementation correctly enforces security invariants across the entire TCB.

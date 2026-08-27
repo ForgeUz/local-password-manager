@@ -228,10 +228,12 @@ class V4Header {
       throw CorruptBlobError('Invalid vault count: expected ${V4Constants.vaultCount}, got $vaultCount');
     }
     
-    final entryCount = bd.getUint16(off, Endian.big);
-    off += 2;
     final entries = <V4EntryRecord>[];
     try {
+      // SECURITY: entry-count read is inside the guard so a truncated header
+      // (exactly fixedHeaderSize bytes) throws CorruptBlobError, not RangeError.
+      final entryCount = bd.getUint16(off, Endian.big);
+      off += 2;
       for (var i = 0; i < entryCount; i++) {
         // Parse one record by scanning: need to know its length.
         final rec = _parseOneRecord(bytes, off);

@@ -107,7 +107,7 @@ Example:
 
 ### 4.3 Do Not Touch Verified Core Without Discussion
 
-The crypto core is mutation-tested (51/51 kill). Files under `lib/src/crypto/` are **protected**.
+The crypto core is mutation-tested (133/133 kill). Files under `lib/src/crypto/` are **protected**.
 
 - Do not modify crypto core without opening an issue first.
 - Changes to crypto require: new invariant, new test, mutation coverage, maintainer approval.

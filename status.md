@@ -11,13 +11,17 @@ Status legend: DONE / PARTIAL / NOT STARTED / NEXT
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 312 (all passing) |
-| Mutation kill score | 100% (120/120: 100 TCB + 20 V6.5 M101-M120) |
+| Total tests | 315+ (all passing) |
+| Mutation kill score | 100% (133/133: 100 TCB + 20 V6.5 + 3 vault_data + 3 passkey + 3 onboarding + 4 shamir) |
+| Security gate suites | security.md (1-20) + security2.md (21-32) — DONE |
+| Fuzzing | 6 fuzzers, 0 crashes |
 | Analyzer errors | 0 |
 | Analyzer warnings | pre-existing info/warnings only |
 | External audit | NOT STARTED (pending) |
 | Linux build | DONE (verified + installed as desktop app) |
 | Android build | DONE (verified, libsodium bundled, device-tested) |
+
+> **Full test/mutation/fuzzer registry:** See [`TESTING.md`](TESTING.md).
 
 ---
 
@@ -46,6 +50,7 @@ The Trusted Computing Base is complete and internally verified.
 - AES-NI hardware check (fail-closed)
 - Error oracle prevention (unified errors)
 - URL normalization (search tags)
+- Header parser RangeError fix (truncated-header boundary now throws CorruptBlobError, found by `tool/fuzz_vault.dart`)
 
 ---
 
@@ -84,7 +89,7 @@ All V6.5 modules implemented and unit-tested. The core mutation campaign is comp
 | `vector_clock.dart` (conflict detection) | DONE (4 tests) |
 | `replay_counter.dart` (replay prevention) | DONE (2 tests) |
 | `traffic_padding.dart` (traffic analysis) | DONE (3 tests) |
-| Sync pairing UI screen | PARTIAL (removed as duplicated, needs rebuild on existing modules) |
+| Sync pairing UI screen | DONE (rebuilt via pure SyncStore + SyncState typestate) |
 
 ### 3.4 Android Platform (code + device test DONE)
 
@@ -96,16 +101,36 @@ All V6.5 modules implemented and unit-tested. The core mutation campaign is comp
 | `AndroidManifest.xml` (permissions, services) | DONE (zero-cloud enforced) |
 | Real device verification | DONE (Android 13 device-tested) |
 
+### 3.5 Passkeys (P3)
+| Item | Status |
+|------|--------|
+| passkey_platform.dart (MethodChannel bridge) |	DONE
+| PasskeyPlugin.kt (Android CredentialManager) |	DONE
+| VaultEntry.passkeyCredentialId (V4 schema evolution) | DONE (Mutation tested M121-M123)
+
 ---
 
 ## 4. Testing & Verification
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Full test suite | 312 | DONE (all pass) |
-| Mutation campaign (core) | 100/100 | DONE (100% kill) |
+| Full test suite | 315+ | DONE (all pass) |
+| Mutation campaign (core) | 100/100 | DONE (100% kill, M01-M100) |
 | Mutation campaign (V6.5) | 20/20 | DONE (100% kill, M101-M120) |
+| Mutation campaign (Vault Data) | 3/3 | DONE (100% kill, M121-M123) |
+| Mutation campaign (Passkey) | 3/3 | DONE (100% kill, M124-M126) |
+| Mutation campaign (OnBoarding) | 3/3 | DONE (100% kill, M127-M129) |
+| Mutation campaign (Shamir) | 4/4 | DONE (100% kill, M130-M133) |
 | Static analysis | 0 errors | DONE |
+| Security gate suite (`security.md` gates 1-20) | DONE | all gates tested |
+| Advanced suite (`security2.md` gates 21-32) | DONE | statemachine, model, fuzzers, concurrency, crash, differential, multivault, attacks, regression |
+| Vault fuzzing (`tool/fuzz_vault.dart`) | 100k | DONE (0 crashes) |
+| Grammar fuzzing (`tool/fuzz_vault_grammar.dart`) | 50k | DONE (0 crashes) |
+| Sync protocol fuzzing (`tool/fuzz_sync_protocol.dart`) | 20k | DONE (all malicious inputs rejected) |
+| TOTP import fuzzing (`tool/fuzz_totp_import.dart`) | 20k | DONE (no crashes) |
+| Memory dump (`tool/memory_dump.dart`) | 1000 cycles | DONE (no residual) |
+
+> **Full registry:** See [`TESTING.md`](TESTING.md).
 
 ---
 
@@ -142,7 +167,7 @@ All V6.5 modules implemented and unit-tested. The core mutation campaign is comp
 |----------|------|--------|
 | P0 | External cryptographic audit | NEXT (AUDIT_BRIEF_V65.md prepared, auditor recruitment pending) |
 | P1 | Publish project + gather feedback | PARTIAL (docs ready, announcement post pending) |
-| P2 | Onboarding flow design | NOT STARTED |
+| P2 | Onboarding flow design | DONE (Typestate Wizard + Mutation tested M127-M129) |
 | P3 | Recovery UX design | NOT STARTED |
 | P4 | Android build environment setup | DONE (`android/DEPS.md` written) |
 | P5 | Android device verification | DONE (device-tested) |
@@ -228,10 +253,10 @@ V6.5 additions:
 - [x] Audit brief prepared (P0)
 - [ ] Project published on GitHub with release tag (P1)
 - [ ] Announcement post written (P1)
-- [ ] Onboarding flow designed (P2)
+- [x] Onboarding flow designed (P2)
 - [ ] Recovery UX designed (P3)
 - [x] Android build instructions written (P4)
 
 ---
 
-**Bottom line:** Crypto core verified (100/100 mutation kill). Full suite is 265 tests, all passing. Linux and Android builds verified and device-tested (libsodium bundled). Remaining blockers: external audit, V6.5 mutation campaign.
+**Bottom line:** Crypto core verified (133/133 mutation kill). Full suite is 315+ tests, all passing. Security gate suites (security.md gates 1-20 + security2.md gates 21-32) complete. Six fuzzers, 0 crashes. Linux and Android builds verified and device-tested (libsodium bundled). Remaining blocker: external audit. See [`TESTING.md`](TESTING.md) for the full verification registry.

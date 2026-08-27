@@ -1,33 +1,16 @@
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:vault_crypto/src/app/vault_service.dart';
 import 'package:vault_crypto/src/crypto/native/secure_buffer.dart';
+import 'package:vault_crypto/src/sync/sync_state.dart';
+import 'package:vault_crypto/src/sync/sync_store.dart';
 
-// Intent: P2P BLE sync is Android-only (Nearby Connections). On Linux/desktop
-// there is no ble_transport channel implementation, so invoking it throws
-// MissingPluginException. Gate the whole screen to Android and show a clear
-// message elsewhere instead of a crash.
 bool get _bleSyncSupported => Platform.isAndroid;
 
-// Typestate: explicit UI state machine. Invalid transitions unrepresentable.
-// State Transition: idle -> advertising/scanning -> connected -> sending -> idle.
-// On fail/disconnect -> idle (Host button always recoverable).
-enum SyncUiState { idle, advertising, scanning, connected, sending }
-
-// Intent: Minimal P2P BLE sync screen bridging the Kotlin BleTransportPlugin
-// (Nearby Connections) to the vault service. Host advertises and SENDS the
-// encrypted blob; client discovers, connects and RECEIVES it, then verifies
-// it with the master password via importVaultFile (proof of possession).
-//
-// SECURITY NOTE: the transferred blob is already AES-256-GCM encrypted at
-// rest, so the BLE transport never sees plaintext. The full Noise NNpsk0
-// pairing layer (lib/src/sync) will be wired on top in a later iteration.
-//
-// REQUIREMENTS: both devices need Bluetooth + Nearby Wi-Fi devices runtime
-// permissions granted (Settings -> Apps -> Vault Crypto -> Permissions) and
-// Google Play Services present.
 class SyncScreen extends StatefulWidget {
   final VaultService service;
   const SyncScreen({super.key, required this.service});
@@ -37,70 +20,65 @@ class SyncScreen extends StatefulWidget {
 }
 
 class _SyncScreenState extends State<SyncScreen> {
-  // Channel names MUST match BleTransportPlugin.kt
   static const _method = MethodChannel('com.example.vault_crypto/ble_transport');
   static const _peers = EventChannel('com.example.vault_crypto/ble_peers');
   static const _data = EventChannel('com.example.vault_crypto/ble_data');
 
-  SyncUiState _state = SyncUiState.idle;
-  String _status = 'Idle';
-  final Map<String, String> _foundPeers = {}; // peerId -> deviceName
-
-  // State Transition: any -> newState; single write point for state+status.
-  void _set(SyncUiState s, String msg) => setState(() { _state = s; _status = msg; });
+  late final SyncStore _store;
 
   @override
   void initState() {
     super.initState();
-    // Kotlin -> Dart: connection lifecycle callbacks
+    _store = SyncStore();
+
     _method.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onConnected':
-          _set(SyncUiState.connected, 'Connected to peer');
+          _store.dispatch(Connected());
           break;
         case 'onDisconnected':
-          _set(SyncUiState.idle, 'Disconnected'); // reset -> Host returns
+          _store.dispatch(Disconnected());
           break;
         case 'onConnectionFailed':
         case 'onConnectionRejected':
-          _set(SyncUiState.idle, 'Connection failed/rejected');
+          _store.dispatch(ErrorOccurred('Connection failed/rejected'));
           break;
       }
     });
 
-    // Kotlin -> Dart: discovered peers stream
     _peers.receiveBroadcastStream().listen((event) {
       final map = Map<String, dynamic>.from(event as Map);
       final id = map['peerId'] as String;
       if (map['type'] == 'found') {
-        setState(() => _foundPeers[id] = (map['deviceName'] ?? 'peer') as String);
+        _store.dispatch(PeerDiscovered(id, (map['deviceName'] ?? 'peer') as String));
       } else if (map['type'] == 'lost') {
-        setState(() => _foundPeers.remove(id));
+        _store.dispatch(PeerLost(id));
       }
     });
 
-    // Kotlin -> Dart: incoming encrypted blob bytes
     _data.receiveBroadcastStream().listen((event) async {
       final bytes = (event as Uint8List);
-      _set(SyncUiState.sending, 'Received ${bytes.length} bytes, verifying...');
-      await _onBlobReceived(bytes);
+      _store.dispatch(BlobReceived(bytes));
     });
   }
 
-  // HOST: export current encrypted blob to temp file and send it over BLE.
+  @override
+  void dispose() {
+    _store.dispose();
+    super.dispose();
+  }
+
   Future<void> _host() async {
-    if (_state != SyncUiState.idle) return; // re-entrancy guard
-    _set(SyncUiState.advertising, 'Advertising...');
     try {
       await _method.invokeMethod('startAdvertising', {'deviceName': 'Vault Host'});
+      _store.dispatch(HostPressed());
     } catch (e) {
-      _set(SyncUiState.idle, 'Advertise failed: $e (grant Bluetooth permissions!)');
+      _store.dispatch(ErrorOccurred('Advertise failed: $e'));
     }
   }
 
   Future<void> _sendBlob() async {
-    if (_state != SyncUiState.connected) return; // only send when connected
-    _set(SyncUiState.sending, 'Sending vault...');
+    _store.dispatch(SendVaultPressed());
     String? path;
     try {
       final tmp = await getTemporaryDirectory();
@@ -108,66 +86,57 @@ class _SyncScreenState extends State<SyncScreen> {
       await widget.service.exportVaultFile(path);
       final bytes = await File(path).readAsBytes();
       await _method.invokeMethod('sendData', {'data': bytes});
-      _set(SyncUiState.idle, 'Vault sent (${bytes.length} bytes).'); // reset -> Host returns
+      _store.dispatch(ResetPressed());
     } catch (e) {
-      _set(SyncUiState.idle, 'Send failed: $e'); // reset on failure too
+      _store.dispatch(ErrorOccurred('Send failed: $e'));
     } finally {
       if (path != null) {
         final f = File(path);
-        if (f.existsSync()) f.deleteSync(); // wipe exported blob from disk
+        if (f.existsSync()) f.deleteSync();
       }
     }
   }
 
-  // CLIENT: scan for hosts.
   Future<void> _join() async {
-    if (_state != SyncUiState.idle) return; // re-entrancy guard -> avoids 8002
-    _set(SyncUiState.scanning, 'Scanning...');
     try {
       await _method.invokeMethod('startScanning');
+      _store.dispatch(JoinPressed());
     } catch (e) {
-      _set(SyncUiState.idle, 'Scan failed: $e (grant Bluetooth permissions!)');
+      _store.dispatch(ErrorOccurred('Scan failed: $e'));
     }
   }
 
   Future<void> _connect(String peerId) async {
-    _set(SyncUiState.scanning, 'Connecting to $peerId...');
+    _store.dispatch(ConnectPressed(peerId));
     await _method.invokeMethod('connect', {'peerId': peerId});
   }
 
-  // Explicit reset: always return to a hostable state, even mid-session.
   Future<void> _reset() async {
     try { await _method.invokeMethod('stopScanning'); } catch (_) {}
     try { await _method.invokeMethod('stopAdvertising'); } catch (_) {}
     try { await _method.invokeMethod('disconnect'); } catch (_) {}
-    _foundPeers.clear();
-    _set(SyncUiState.idle, 'Idle');
+    _store.dispatch(ResetPressed());
   }
 
-  // CLIENT: persist received blob to temp file, verify with MP, replace live
-  // vault, then force re-lock so the user re-unlocks the fresh vault.
-  // Invariants: mp SecureBuffer is zeroed (disposed) and temp file deleted on
-  // every exit path -> master password never lingers in native memory or disk.
   Future<void> _onBlobReceived(Uint8List bytes) async {
     final tmp = await getTemporaryDirectory();
     final path = '${tmp.path}/sync_incoming.vault';
     await File(path).writeAsBytes(bytes, flush: true);
 
     final mpController = TextEditingController();
+    
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Verify received vault'),
+      builder: (context) => AlertDialog(
+        title: const Text('Verify Master Password'),
         content: TextField(
           controller: mpController,
           obscureText: true,
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: const InputDecoration(labelText: 'Master Password'),
+          decoration: const InputDecoration(hintText: 'Enter master password to decrypt vault'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Verify')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Verify')),
         ],
       ),
     );
@@ -176,7 +145,7 @@ class _SyncScreenState extends State<SyncScreen> {
       mpController.dispose();
       final f = File(path);
       if (f.existsSync()) f.deleteSync();
-      _set(SyncUiState.idle, 'Import cancelled.');
+      _store.dispatch(ResetPressed());
       return;
     }
 
@@ -185,14 +154,15 @@ class _SyncScreenState extends State<SyncScreen> {
       mp = SecureBuffer.alloc(mpController.text.codeUnits.length);
       mp.writeBytes(Uint8List.fromList(mpController.text.codeUnits));
       await widget.service.importVaultFile(path, mp);
-      await widget.service.lock(); // force re-unlock with the new blob
+      await widget.service.lock();
       if (mounted) {
-        Navigator.pop(context); // back to lock screen of the fresh vault
+        Navigator.pop(context);
       }
+      _store.dispatch(VerifySuccess());
     } catch (_) {
-      _set(SyncUiState.idle, 'Verify failed: wrong master password.');
+      _store.dispatch(VerifyFailed('Wrong master password.'));
     } finally {
-      mp?.dispose(); // zero master password from native memory
+      mp?.dispose();
       mpController.dispose();
       final f = File(path);
       if (f.existsSync()) f.deleteSync();
@@ -202,8 +172,6 @@ class _SyncScreenState extends State<SyncScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_bleSyncSupported) {
-      // BLE P2P sync requires the Android Nearby Connections plugin. On
-      // Linux/desktop there is no channel implementation -> show guidance.
       return Scaffold(
         appBar: AppBar(title: const Text('P2P Sync (BLE)')),
         body: const Center(
@@ -231,6 +199,18 @@ class _SyncScreenState extends State<SyncScreen> {
         ),
       );
     }
+    
+    return StreamBuilder<SyncState>(
+      stream: _store.stateStream,
+      initialData: _store.currentState,
+      builder: (context, snapshot) {
+        final state = snapshot.data ?? SyncIdle();
+        return _buildBody(context, state);
+      }
+    );
+  }
+
+  Widget _buildBody(BuildContext context, SyncState state) {
     return Scaffold(
       appBar: AppBar(title: const Text('P2P Sync (BLE)')),
       body: ListView(
@@ -245,35 +225,12 @@ class _SyncScreenState extends State<SyncScreen> {
             child: const Text(
               'Both devices: enable Bluetooth and grant Bluetooth + '
               'Nearby Wi-Fi permissions to Vault Crypto. Host sends the '
-              'encrypted vault; receiver verifies it with the master password.\n\n'
-              'Master password: enter the SAME master password that unlocks the '
-              'vault you are receiving. If the two devices use different master '
-              'passwords, the transfer will fail verification (the vault is '
-              'encrypted with the sender\'s password). The password is never '
-              'transmitted over BLE — it only unlocks the already-encrypted file.',
+              'encrypted vault; receiver verifies it with the master password.',
               style: TextStyle(fontSize: 13),
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _state == SyncUiState.connected ? _sendBlob : _host,
-                  icon: const Icon(Icons.cast),
-                  label: Text(_state == SyncUiState.connected ? 'Send Vault' : 'Host (send)'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _join,
-                  icon: const Icon(Icons.radar),
-                  label: const Text('Join (receive)'),
-                ),
-              ),
-            ],
-          ),
+          _buildActions(state),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerLeft,
@@ -284,25 +241,84 @@ class _SyncScreenState extends State<SyncScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Status: $_status', style: const TextStyle(fontSize: 14)),
+          Text('Status: ${_statusText(state)}', style: const TextStyle(fontSize: 14)),
           const SizedBox(height: 24),
-          const Text('Discovered peers:', style: TextStyle(fontSize: 16)),
-          if (_foundPeers.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('No peers yet. Press "Join" on this device and "Host" on the other.'),
-            ),
-          ..._foundPeers.entries.map(
-            (e) => ListTile(
-              leading: const Icon(Icons.phone_android),
-              title: Text(e.value),
-              subtitle: Text(e.key),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _connect(e.key),
-            ),
-          ),
+          _buildPeers(state),
         ],
       ),
     );
+  }
+
+  Widget _buildActions(SyncState state) {
+    if (state is SyncConnected) {
+      return ElevatedButton.icon(
+        onPressed: _sendBlob,
+        icon: const Icon(Icons.send),
+        label: const Text('Send Vault'),
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: state is SyncIdle ? _host : null,
+            icon: const Icon(Icons.cast),
+            label: const Text('Host (send)'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: state is SyncIdle ? _join : null,
+            icon: const Icon(Icons.radar),
+            label: const Text('Join (receive)'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPeers(SyncState state) {
+    if (state is! SyncScanning) {
+      return const Padding(
+        padding: EdgeInsets.all(8),
+        child: Text('No peers yet. Press "Join" on this device and "Host" on the other.'),
+      );
+    }
+    if (state.peers.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(8),
+        child: Text('Scanning for peers...'),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Discovered peers:', style: TextStyle(fontSize: 16)),
+        ...state.peers.entries.map(
+          (e) => ListTile(
+            leading: const Icon(Icons.phone_android),
+            title: Text(e.value),
+            subtitle: Text(e.key),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _connect(e.key),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _statusText(SyncState state) {
+    if (state is SyncIdle) return 'Idle';
+    if (state is SyncAdvertising) return 'Advertising...';
+    if (state is SyncScanning) return 'Scanning...';
+    if (state is SyncConnected) return 'Connected to peer';
+    if (state is SyncTransferring) return state.message;
+    if (state is SyncVerify) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _onBlobReceived(state.bytes));
+      return 'Received ${state.bytes.length} bytes, verifying...';
+    }
+    if (state is SyncError) return 'Error: ${state.message}';
+    return 'Unknown';
   }
 }

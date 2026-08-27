@@ -30,6 +30,7 @@ import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.spec.GCMParameterSpec
+import com.example.vault_crypto.PasskeyPlugin
 
 class MainActivity : FlutterFragmentActivity() {
     private val CLIPBOARD_CHANNEL = "vault_crypto/clipboard"
@@ -162,8 +163,10 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        blePlugin = BleTransportPlugin.registerWith(this, flutterEngine)
+        // P3: Register Passkey Plugin manually (project-specific, not pub package)
+        flutterEngine.plugins.add(PasskeyPlugin())
 
+        blePlugin = BleTransportPlugin.registerWith(this, flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CLIPBOARD_CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {

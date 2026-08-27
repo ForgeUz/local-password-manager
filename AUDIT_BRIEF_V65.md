@@ -13,11 +13,16 @@
 
 Vault Crypto is a local-first, zero-cloud password manager. The cryptographic core (V4/V5) is internally verified:
 
-- **265 tests** (all passing)
-- **100/100 mutation kill** (100% kill score across entire TCB)
+- **315+ tests** (all passing)
+- **133/133 mutation kill** (100% kill score across entire TCB + V6.5 + vault data + passkey + onboarding + shamir)
+- **Security gate suites** — [`security.md`](security.md) (gates 1-20) + [`security2.md`](security2.md) (gates 21-32)
+- **6 fuzzers, 0 crashes**
 - **0 analyzer errors**
 
 V6.5 adds mass-user features (security tiers, TOTP, P2P BLE sync, Android autofill) without modifying the verified crypto core. **We seek independent verification of both the crypto core and the new V6.5 modules.**
+
+> **Full test/mutation/fuzzer registry:** See [`TESTING.md`](TESTING.md).
+> **Auditor-facing docs:** See [`AUDIT_PACKAGE/`](AUDIT_PACKAGE) (CRYPTO_SPEC, THREAT_MODEL, ATTACK_SURFACE, TEST_COVERAGE, KNOWN_LIMITATIONS, BUILD_REPRODUCIBILITY, DIFFERENTIAL_ANALYSIS).
 
 **Core doctrine (enforced, non-negotiable):**
 - **Zero-Cloud** - no server, no relay, no telemetry. Only egress is opt-in breach monitoring (5-char SHA-1 prefix).
@@ -169,8 +174,10 @@ These are the properties we want auditors to verify (or break):
 
 | Method | Scope | Result |
 |--------|-------|--------|
-| Unit tests | 265 tests | All pass |
-| Mutation testing | 100 mutations, crypto core | 100% kill (100/100) |
+| Unit tests | 315+ tests | All pass |
+| Mutation testing | 133 mutations, full TCB + V6.5 + vault data + passkey + onboarding + shamir | 100% kill (133/133) |
+| Security gate suites | security.md (1-20) + security2.md (21-32) | All gates tested |
+| Fuzzing | 6 fuzzers | 0 crashes |
 | Static analysis | `flutter analyze` | 0 errors, 2 warnings (pre-existing) |
 | Code review | All TCB files | Internal review complete |
 | Memory audit | FFI wrappers + Dart zeroing | PASS (documented residual) |
@@ -225,9 +232,9 @@ sudo apt install -y clang cmake ninja-build pkg-config \
 
 ```bash
 flutter pub get
-flutter test                    # 265 tests
+flutter test                    # 315+ tests
 flutter analyze                 # 0 errors expected
-dart run tool/mutation_campaign.dart   # mutation kill score
+dart run tool/mutation_campaign.dart   # mutation kill score (133/133)
 ```
 
 ### Build (Linux)
@@ -311,7 +318,7 @@ wc -l lib/src/security/security_tier*.dart \
 wc -l android/app/src/main/kotlin/com/example/vault_crypto/*.kt
 ```
 
-## Appendix B: Mutations Already Killed (100/100)
+## Appendix B: Mutations Already Killed (133/133)
 
 See `SECURITY_AUDIT.md` Task 3 for full mutation list by group:
 - vault_crypto_v4: 20

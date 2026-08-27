@@ -38,7 +38,7 @@ A local-first password manager for Linux and Android. No cloud, no server, no te
 
 ## What's New in V6.5 (Mass-User Readiness)
 
-V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. The full suite is 265 tests, all passing.
+V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. The full suite is 315+ tests, all passing.
 
 ### Security Tiers (Standard / Sensitive / Critical)
 
@@ -232,19 +232,25 @@ adb install -r build/app/outputs/flutter-apk/app-release.apk
 ## Tests
 
 ```bash
-flutter test        # 265 tests (all pass)
+flutter test        # 315+ tests (all pass)
 flutter analyze     # 0 errors (remaining items are pre-existing info/warnings)
-dart run tool/mutation_campaign.dart   # mutation kill score (100%, 100/100 applied)
+dart run tool/mutation_campaign.dart   # mutation kill score (100%, 133/133 applied)
 ```
 
 **Test coverage:**
-- 265 unit + integration tests (all passing)
-- 100 mutations covering the entire Trusted Computing Base (TCB)
+- 315+ unit + integration tests (all passing)
+- 133 mutations covering the entire Trusted Computing Base (TCB) + V6.5 + vault data + passkey + onboarding + shamir
 - 100% mutation kill score (all security invariants verified)
+- Full security gate suites: [`security.md`](security.md) (gates 1-20) and [`security2.md`](security2.md) (gates 21-32)
 - RFC 6238 compliance tests for TOTP (SHA1/SHA256/SHA512)
 - Security tier policy tests (21 tests)
 - P2P pairing protocol tests (state machine, PSK derivation)
 - Lookalike domain detection tests
+- Fuzzing (vault, grammar, sync protocol, TOTP import) — 0 crashes
+- Differential testing against reference implementations (HKDF, HMAC, TOTP, Argon2id)
+
+> **Full registry:** See [`TESTING.md`](TESTING.md) for the complete list of
+> test suites, mutation runs (M01-M133), fuzzers, and verification tools.
 
 ---
 
@@ -297,7 +303,33 @@ See `SECURITY.md` for threat model, vulnerability reporting, and security contac
 
 See `SECURITY_AUDIT.md` for internal audit results and hardening applied.
 
-**Current status:** Internal audit complete (100/100 mutation kill). External audit pending (recruiting auditors).
+**Current status:** Internal audit complete (133/133 mutation kill). External audit pending (recruiting auditors).
+
+---
+
+## Publish
+
+This is a pre-audit release. To publish the current state to GitHub:
+
+```bash
+# 1. Verify everything passes
+flutter test
+flutter analyze
+dart run tool/verify_mutations.dart   # all 133 mutation search strings present
+
+# 2. Commit
+git add -A
+git commit -m "V6.5.1: security2.md advanced verification suite (gates 21-32), TESTING.md registry, audit package"
+
+# 3. Tag the pre-audit release
+git tag v1.0.0-pre-audit
+
+# 4. Push
+git push origin main --tags
+```
+
+Then create a GitHub Release from the `v1.0.0-pre-audit` tag with the
+[`AUDIT_PACKAGE/`](AUDIT_PACKAGE) docs attached.
 
 ---
 
@@ -305,3 +337,5 @@ See `SECURITY_AUDIT.md` for internal audit results and hardening applied.
 
 - **Security:** See `SECURITY.md`
 - **Audit Brief:** See `AUDIT_BRIEF_V65.md`
+- **Testing Registry:** See `TESTING.md`
+- **Audit Package:** See `AUDIT_PACKAGE/`

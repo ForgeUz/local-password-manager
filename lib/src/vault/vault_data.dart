@@ -8,6 +8,7 @@ class VaultEntry {
   String username;
   String password;
   String url;
+  String? passkeyCredentialId; // Opaque FIDO2 handle (public data, key lives in hardware)
 
   VaultEntry({
     required this.id,
@@ -15,6 +16,7 @@ class VaultEntry {
     required this.username,
     required this.password,
     required this.url,
+    this.passkeyCredentialId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -23,6 +25,7 @@ class VaultEntry {
         'username': username,
         'password': password,
         'url': url,
+        'passkeyCredentialId': passkeyCredentialId,
       };
 
   factory VaultEntry.fromJson(Map<String, dynamic> json) {
@@ -32,6 +35,7 @@ class VaultEntry {
       username: json['username'] as String,
       password: json['password'] as String,
       url: json['url'] as String,
+      passkeyCredentialId: json['passkeyCredentialId'] as String?,
     );
   }
 }
