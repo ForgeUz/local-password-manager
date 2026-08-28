@@ -3,6 +3,7 @@ name: Security Verification
 on:
   push:
   pull_request:
+  workflow_dispatch:
   schedule:
     - cron: '0 2 * * *' # nightly
 
@@ -12,6 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
       - run: flutter test test/security/crypto/
       - run: flutter test test/security/format/
       - run: flutter test test/security/memory/
@@ -23,6 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
       - run: flutter test test/security/statemachine/
       - run: flutter test test/security/model/
       - run: flutter test test/security/concurrency/
@@ -37,6 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
       - run: dart run tool/fuzz_vault.dart --iterations 10000
       - run: dart run tool/fuzz_vault_grammar.dart --iterations 10000
       - run: dart run tool/fuzz_totp_import.dart --iterations 5000
@@ -47,7 +57,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-      - run: flutter test test/security/runtime/test_timing.dart
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter test test/security/runtime/timing_test.dart
       - run: dart run tool/timing_cache.dart
 
   memory:
@@ -55,6 +68,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
       - run: dart run tool/memory_dump.dart
 
   supply-chain:
@@ -62,6 +78,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
       - run: dart run tool/verify_deps.dart
       - run: dart run tool/verify_libsodium.dart
 
@@ -70,5 +89,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          cache: true
       - run: flutter analyze
       - run: dart format --set-exit-if-changed lib/
