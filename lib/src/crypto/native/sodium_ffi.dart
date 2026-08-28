@@ -1,5 +1,5 @@
 import 'dart:ffi';
-import 'dart:io' show Platform; 
+import 'dart:io' show Platform;
 import 'package:ffi/ffi.dart';
 
 // Intent: FFI boundary to libsodium. Single load point for all crypto.
@@ -18,7 +18,8 @@ class SodiumFfi {
   SodiumFfi._(this._lib);
 
   static SodiumFfi load() {
-    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
+    final lib = DynamicLibrary.open(
+        Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     return SodiumFfi._(lib);
   }
 
@@ -30,7 +31,8 @@ class SodiumFfi {
   }
 
   String versionString() {
-    final sodiumVersionString = _lib.lookupFunction<SodiumVersionNative, SodiumVersionDart>(
+    final sodiumVersionString =
+        _lib.lookupFunction<SodiumVersionNative, SodiumVersionDart>(
       'sodium_version_string',
     );
     return sodiumVersionString().toDartString();

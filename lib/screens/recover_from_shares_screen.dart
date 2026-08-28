@@ -12,7 +12,8 @@ class RecoverFromSharesScreen extends StatefulWidget {
   const RecoverFromSharesScreen({super.key, required this.service});
 
   @override
-  State<RecoverFromSharesScreen> createState() => _RecoverFromSharesScreenState();
+  State<RecoverFromSharesScreen> createState() =>
+      _RecoverFromSharesScreenState();
 }
 
 class _RecoverFromSharesScreenState extends State<RecoverFromSharesScreen> {

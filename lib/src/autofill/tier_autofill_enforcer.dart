@@ -252,8 +252,7 @@ class TierAutofillEnforcer {
         // If the differing char is NOT a known confusable pair, bail.
         final ca = a[i];
         final cb = b[i];
-        final isConfusable =
-            (confusables[ca] == cb) || (confusables[cb] == ca);
+        final isConfusable = (confusables[ca] == cb) || (confusables[cb] == ca);
         if (!isConfusable) return false;
       }
     }
@@ -278,8 +277,8 @@ class TierAutofillEnforcer {
       for (int j = 1; j <= n; j++) {
         final cost = a[i - 1] == b[j - 1] ? 0 : 1;
         curr[j] = [
-          prev[j] + 1,       // deletion
-          curr[j - 1] + 1,   // insertion
+          prev[j] + 1, // deletion
+          curr[j - 1] + 1, // insertion
           prev[j - 1] + cost // substitution
         ].reduce((x, y) => x < y ? x : y);
       }
@@ -317,8 +316,22 @@ class TierAutofillEnforcer {
   /// Minimal public-suffix check (top-level indicator).
   static bool _isPublicSuffix(String s) {
     const tlds = {
-      'com', 'net', 'org', 'io', 'co', 'dev', 'app', 'me',
-      'info', 'biz', 'xyz', 'online', 'site', 'tech', 'gov', 'edu',
+      'com',
+      'net',
+      'org',
+      'io',
+      'co',
+      'dev',
+      'app',
+      'me',
+      'info',
+      'biz',
+      'xyz',
+      'online',
+      'site',
+      'tech',
+      'gov',
+      'edu',
     };
     return tlds.contains(s);
   }

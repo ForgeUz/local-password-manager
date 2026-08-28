@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:base32/base32.dart';
@@ -17,7 +16,7 @@ class _TotpScreenState extends State<TotpScreen> {
   final _secretController = TextEditingController();
   final _issuerController = TextEditingController();
   final _accountController = TextEditingController();
-  
+
   TotpConfig? _config;
   String? _currentCode;
   String? _nextCode;
@@ -55,10 +54,10 @@ class _TotpScreenState extends State<TotpScreen> {
 
   void _updateCodes() {
     if (_config == null) return;
-    
+
     final code = TotpGenerator.generateNow(config: _config!);
     final next = TotpGenerator.generateNext(config: _config!);
-    
+
     setState(() {
       _currentCode = code;
       _nextCode = next;
@@ -75,16 +74,20 @@ class _TotpScreenState extends State<TotpScreen> {
     try {
       final secretBytes = base32.decode(secretB32.toUpperCase());
       final secret = SecureBuffer.fromList(secretBytes);
-      
+
       final config = TotpConfig(
-        issuer: _issuerController.text.trim().isEmpty ? 'Manual' : _issuerController.text.trim(),
-        accountName: _accountController.text.trim().isEmpty ? 'Account' : _accountController.text.trim(),
+        issuer: _issuerController.text.trim().isEmpty
+            ? 'Manual'
+            : _issuerController.text.trim(),
+        accountName: _accountController.text.trim().isEmpty
+            ? 'Account'
+            : _accountController.text.trim(),
         secret: secret,
         digits: 6,
         periodSeconds: 30,
         algorithm: TotpAlgorithm.sha1,
       );
-      
+
       setState(() {
         _config = config;
         _error = null;
@@ -98,9 +101,9 @@ class _TotpScreenState extends State<TotpScreen> {
   void _importFromQr(BarcodeCapture capture) {
     final qr = capture.barcodes.first.rawValue;
     if (qr == null) return;
-    
+
     final result = TotpUriParser.parse(qr);
-    
+
     if (result is TotpImportSuccess) {
       setState(() {
         _config = result.config;
@@ -142,7 +145,8 @@ class _TotpScreenState extends State<TotpScreen> {
                   if (_config == null) ...[
                     const Text(
                       'Add TOTP Secret',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -176,13 +180,15 @@ class _TotpScreenState extends State<TotpScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
+                          color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                          border: Border.all(
+                              color: Colors.redAccent.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                          style: const TextStyle(
+                              color: Colors.redAccent, fontSize: 14),
                         ),
                       ),
                     ElevatedButton(
@@ -192,7 +198,8 @@ class _TotpScreenState extends State<TotpScreen> {
                   ] else ...[
                     Text(
                       _config!.displayLabel,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
@@ -217,17 +224,20 @@ class _TotpScreenState extends State<TotpScreen> {
                           LinearProgressIndicator(
                             value: _secondsRemaining / 30,
                             backgroundColor: Colors.grey[800],
-                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blueGrey),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                                Colors.blueGrey),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             '$_secondsRemaining seconds',
-                            style: const TextStyle(fontSize: 14, color: Colors.white70),
+                            style: const TextStyle(
+                                fontSize: 14, color: Colors.white70),
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'Next: ${_nextCode ?? '------'}',
-                            style: const TextStyle(fontSize: 16, color: Colors.white54),
+                            style: const TextStyle(
+                                fontSize: 16, color: Colors.white54),
                           ),
                         ],
                       ),

@@ -7,7 +7,7 @@ LockState reduce(LockState state, LockIntent intent) {
   if (state is Initial && intent is VaultLoaded) {
     return Locked(failCount: 0, blob: intent.blob);
   }
-  
+
   if (state is Initial && intent is VaultMissing) {
     return SetupRequired();
   }
@@ -23,7 +23,7 @@ LockState reduce(LockState state, LockIntent intent) {
   if (state is BlobCorrupt && intent is BlobResetComplete) {
     return SetupRequired();
   }
-  
+
   if (state is SetupRequired && intent is VaultCreated) {
     return Unlocked(vaultData: intent.vaultData, blob: intent.blob);
   }
@@ -45,7 +45,7 @@ LockState reduce(LockState state, LockIntent intent) {
       );
     }
   }
-  
+
   if (state is Unlocked) {
     if (intent is AddEntry) {
       final newEntries = List.of(state.vaultData.entries)..add(intent.entry);
@@ -62,6 +62,6 @@ LockState reduce(LockState state, LockIntent intent) {
       return Locked(failCount: 0, blob: state.blob);
     }
   }
-  
-  return state; 
+
+  return state;
 }

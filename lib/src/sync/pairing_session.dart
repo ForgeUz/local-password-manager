@@ -23,13 +23,14 @@ enum PairingStatus { idle, waitingForPeer, paired, cooldown, failed }
 class PairingSession {
   static const int _maxAttempts = 3;
   static const int _passphraseLength = 8;
-  static const String _alnum = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  static const String _alnum =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
   PairingState startPairing() {
     final random = Random.secure();
     // >=8-char alphanumeric passphrase (E18: not a short numeric PIN).
-    final pin = List.generate(_passphraseLength, (_) =>
-        _alnum[random.nextInt(_alnum.length)]).join();
+    final pin = List.generate(
+        _passphraseLength, (_) => _alnum[random.nextInt(_alnum.length)]).join();
     return PairingState(
       status: PairingStatus.waitingForPeer,
       pin: pin,
@@ -51,7 +52,7 @@ class PairingSession {
 
   PairingState handleHandshakeFail(PairingState current) {
     if (current.status != PairingStatus.waitingForPeer) return current;
-    
+
     final nextAttempts = current.attempts + 1;
     if (nextAttempts >= _maxAttempts) {
       return PairingState(
@@ -60,7 +61,7 @@ class PairingSession {
         attempts: nextAttempts,
       );
     }
-    
+
     return PairingState(
       status: PairingStatus.waitingForPeer,
       pin: current.pin,

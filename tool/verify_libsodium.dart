@@ -10,7 +10,6 @@
 // Usage: dart run tool/verify_libsodium.dart
 // Dependencies: dart:io, dart:convert.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -34,7 +33,7 @@ void main() {
     }
     final bytes = f.readAsBytesSync();
     final hash = sha256.convert(bytes).toString();
-    print('$path');
+    print(path);
     print('  size: ${bytes.length} bytes');
     print('  SHA-256: $hash');
     print('  NOTE: compare this hash against the official libsodium release');

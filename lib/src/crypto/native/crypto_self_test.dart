@@ -6,7 +6,6 @@ import 'constant_time.dart';
 import 'hkdf.dart';
 import 'hmac_sha256.dart';
 import 'sodium_ffi.dart';
-import 'dart:io';
 
 // Intent: Startup self-test for the libsodium FFI layer. Fail-closed: if any
 // primitive misbehaves, the app must not proceed with crypto.
@@ -33,12 +32,41 @@ class CryptoSelfTest {
     final hmacKey = Uint8List.fromList(List.generate(32, (_) => 0xaa));
     final hmacData = Uint8List.fromList(List.generate(50, (_) => 0xdd));
     final hmacExpected = Uint8List.fromList([
-      0xcd, 0xcb, 0x12, 0x20, 0xd1, 0xec, 0xcc, 0xea,
-      0x91, 0xe5, 0x3a, 0xba, 0x30, 0x92, 0xf9, 0x62,
-      0xe5, 0x49, 0xfe, 0x6c, 0xe9, 0xed, 0x7f, 0xdc,
-      0x43, 0x19, 0x1f, 0xbd, 0xe4, 0x5c, 0x30, 0xb0,
+      0xcd,
+      0xcb,
+      0x12,
+      0x20,
+      0xd1,
+      0xec,
+      0xcc,
+      0xea,
+      0x91,
+      0xe5,
+      0x3a,
+      0xba,
+      0x30,
+      0x92,
+      0xf9,
+      0x62,
+      0xe5,
+      0x49,
+      0xfe,
+      0x6c,
+      0xe9,
+      0xed,
+      0x7f,
+      0xdc,
+      0x43,
+      0x19,
+      0x1f,
+      0xbd,
+      0xe4,
+      0x5c,
+      0x30,
+      0xb0,
     ]);
-    if (!ConstantTime.equals(HmacSha256.compute(hmacKey, hmacData), hmacExpected)) {
+    if (!ConstantTime.equals(
+        HmacSha256.compute(hmacKey, hmacData), hmacExpected)) {
       throw StateError('HMAC-SHA256 failed');
     }
 
@@ -74,8 +102,10 @@ class CryptoSelfTest {
     // Argon2id determinism
     final mp = Uint8List.fromList(utf8.encode('correct horse battery staple'));
     final aSalt = Uint8List.fromList(List.generate(16, (_) => 0x42));
-    final a1 = Argon2id.derive(mp, aSalt, memory: 65536, iterations: 3, parallelism: 1);
-    final a2 = Argon2id.derive(mp, aSalt, memory: 65536, iterations: 3, parallelism: 1);
+    final a1 = Argon2id.derive(mp, aSalt,
+        memory: 65536, iterations: 3, parallelism: 1);
+    final a2 = Argon2id.derive(mp, aSalt,
+        memory: 65536, iterations: 3, parallelism: 1);
     if (a1.length != 32 || !ConstantTime.equals(a1, a2)) {
       throw StateError('Argon2id failed');
     }

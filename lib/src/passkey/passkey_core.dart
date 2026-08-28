@@ -36,7 +36,8 @@ class PasskeyEntry {
     return PasskeyEntry(
       id: json['id'] as String,
       rpId: json['rpId'] as String,
-      credentialId: Uint8List.fromList(List<int>.from(json['credentialId'] as List)),
+      credentialId:
+          Uint8List.fromList(List<int>.from(json['credentialId'] as List)),
       createdAt: DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int),
     );
   }

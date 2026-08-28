@@ -13,7 +13,8 @@ SyncState syncReduce(SyncState state, SyncIntent intent) {
 
   if (state is SyncAdvertising) {
     if (intent is Connected) return SyncConnected('');
-    if (intent is PairingInitiated) return SyncPairing(passphrase: intent.passphrase, isHost: intent.isHost);
+    if (intent is PairingInitiated)
+      return SyncPairing(passphrase: intent.passphrase, isHost: intent.isHost);
   }
 
   if (state is SyncScanning) {
@@ -27,7 +28,8 @@ SyncState syncReduce(SyncState state, SyncIntent intent) {
       newPeers.remove(intent.id);
       return SyncScanning(newPeers);
     }
-    if (intent is ConnectPressed) return SyncTransferring('Connecting to ${intent.id}...');
+    if (intent is ConnectPressed)
+      return SyncTransferring('Connecting to ${intent.id}...');
   }
 
   if (state is SyncTransferring) {

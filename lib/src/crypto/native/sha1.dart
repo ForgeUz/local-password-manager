@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:io';
 
 // Intent: SHA-1 (FIPS 180-1) for HIBP k-anonymity interop (v5 E8). HIBP Pwned
 // Passwords keys on SHA-1 prefixes; libsodium 1.0.18 does not export
@@ -20,7 +19,11 @@ class Sha1 {
     final bd = ByteData.sublistView(padded);
     bd.setUint64(paddedLen - 8, bitLen, Endian.big);
 
-    var h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476, h4 = 0xC3D2E1F0;
+    var h0 = 0x67452301,
+        h1 = 0xEFCDAB89,
+        h2 = 0x98BADCFE,
+        h3 = 0x10325476,
+        h4 = 0xC3D2E1F0;
     final w = List<int>.filled(80, 0);
 
     for (var block = 0; block < paddedLen; block += 64) {

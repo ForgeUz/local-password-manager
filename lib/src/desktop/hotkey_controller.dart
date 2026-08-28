@@ -9,7 +9,8 @@ class HotkeyController {
   HotkeyController({
     required HotkeyPlatform platform,
     required void Function(LockIntent) dispatch,
-  }) : _platform = platform, _dispatch = dispatch;
+  })  : _platform = platform,
+        _dispatch = dispatch;
 
   Future<void> register() async {
     await _platform.registerHotkey(() {

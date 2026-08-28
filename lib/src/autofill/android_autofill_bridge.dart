@@ -11,8 +11,10 @@ class AndroidAutofillBridge {
   final VaultService _service;
   String? _pendingDomain;
 
-  AndroidAutofillBridge({required AppStore store, required VaultService service})
-      : _store = store, _service = service {
+  AndroidAutofillBridge(
+      {required AppStore store, required VaultService service})
+      : _store = store,
+        _service = service {
     _channel.setMethodCallHandler(_handleMethod);
     _store.stateStream.listen(_onStateChange);
   }
@@ -21,7 +23,7 @@ class AndroidAutofillBridge {
     if (call.method == 'onAutofillRequested') {
       final domain = call.arguments['domain'] as String? ?? '';
       if (domain.isEmpty) return;
-      
+
       if (_store.currentState is Unlocked) {
         await _processAutofill(domain);
       } else {
@@ -53,7 +55,7 @@ class AndroidAutofillBridge {
     }
 
     final tier = SecurityTier.values[tierInt];
-    
+
     final decision = TierAutofillEnforcer.decide(AutofillRequest(
       entryDomain: entry.url,
       requestedDomain: requestedDomain,

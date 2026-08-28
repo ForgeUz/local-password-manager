@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:vault_crypto/src/app/vault_service.dart';
 import 'package:vault_crypto/src/crypto/native/secure_buffer.dart';
 import 'package:vault_crypto/src/onboarding/onboarding_core.dart';
-import 'dart:typed_data';
 import 'decoy_setup_screen.dart';
 
 class SetupScreen extends StatefulWidget {
@@ -14,7 +13,8 @@ class SetupScreen extends StatefulWidget {
   State<SetupScreen> createState() => _SetupScreenState();
 }
 
-class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStateMixin {
+class _SetupScreenState extends State<SetupScreen>
+    with SingleTickerProviderStateMixin {
   final _mpController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _isLoading = false;
@@ -30,7 +30,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
+    _fadeAnimation =
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn);
     _fadeController.forward();
   }
 
@@ -83,7 +84,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
   void _openDecoyWizard() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => DecoySetupScreen(service: widget.service)),
+      MaterialPageRoute(
+          builder: (_) => DecoySetupScreen(service: widget.service)),
     );
   }
 
@@ -118,8 +120,10 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
       builder: (context, snapshot) {
         final state = snapshot.data ?? OnboardingWelcome();
         if (state is OnboardingDone) {
-          WidgetsBinding.instance.addPostFrameCallback((_) => _finalizeVault(state.createDecoy));
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _finalizeVault(state.createDecoy));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
         return _buildBody(context, state);
       },
@@ -144,7 +148,8 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                 const SizedBox(height: 40),
                 if (state is OnboardingWelcome) _buildWelcome(),
                 if (state is OnboardingDoctrine) _buildDoctrine(),
-                if (state is OnboardingCreateMP) _buildCreateMP(passwordStrength, strengthColor, strengthText),
+                if (state is OnboardingCreateMP)
+                  _buildCreateMP(passwordStrength, strengthColor, strengthText),
                 if (state is OnboardingDecoyOptIn) _buildDecoyOptIn(),
                 const SizedBox(height: 40),
               ],
@@ -159,22 +164,38 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
     return Column(
       children: [
         Container(
-          width: 80, height: 80,
+          width: 80,
+          height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(colors: [Colors.blueGrey.shade700, Colors.blueGrey.shade900], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            gradient: LinearGradient(
+                colors: [Colors.blueGrey.shade700, Colors.blueGrey.shade900],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight),
           ),
-          child: const Icon(Icons.shield_outlined, size: 40, color: Colors.white),
+          child:
+              const Icon(Icons.shield_outlined, size: 40, color: Colors.white),
         ),
         const SizedBox(height: 32),
-        const Text('Vault Crypto', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
+        const Text('Vault Crypto',
+            style: TextStyle(
+                fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+            textAlign: TextAlign.center),
         const SizedBox(height: 48),
         SizedBox(
-          width: double.infinity, height: 56,
+          width: double.infinity,
+          height: 56,
           child: ElevatedButton(
             onPressed: () => _onboarding.dispatch(BeginOnboarding()),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade700, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Get Started', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey.shade700,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            child: const Text('Get Started',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white)),
           ),
         ),
       ],
@@ -186,7 +207,10 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
       children: [
         const Icon(Icons.warning_amber_rounded, size: 64, color: Colors.orange),
         const SizedBox(height: 24),
-        const Text('Zero-Knowledge Doctrine', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
+        const Text('Zero-Knowledge Doctrine',
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            textAlign: TextAlign.center),
         const SizedBox(height: 16),
         const Text(
           'Your master password is the ONLY way to unlock your data.\n\n'
@@ -197,11 +221,19 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
         ),
         const SizedBox(height: 48),
         SizedBox(
-          width: double.infinity, height: 56,
+          width: double.infinity,
+          height: 56,
           child: ElevatedButton(
             onPressed: () => _onboarding.dispatch(AcceptDoctrine()),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('I Understand', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade800,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            child: const Text('I Understand',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white)),
           ),
         ),
       ],
@@ -211,11 +243,24 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
   Widget _buildCreateMP(double strength, Color color, String text) {
     return Column(
       children: [
-        const Text('Create Master Password', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
+        const Text('Create Master Password',
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            textAlign: TextAlign.center),
         const SizedBox(height: 32),
         TextField(
-          controller: _mpController, obscureText: true, autocorrect: false, enableSuggestions: false,
-          decoration: InputDecoration(labelText: 'Master Password', filled: true, fillColor: Colors.grey[900], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: Icon(Icons.lock_outline, color: Colors.white54)),
+          controller: _mpController,
+          obscureText: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: InputDecoration(
+              labelText: 'Master Password',
+              filled: true,
+              fillColor: Colors.grey[900],
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              prefixIcon: Icon(Icons.lock_outline, color: Colors.white54)),
           style: const TextStyle(color: Colors.white),
           onChanged: (_) => setState(() {}),
         ),
@@ -226,34 +271,56 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
               Expanded(
                 child: Container(
                   height: 4,
-                  decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(2)),
                   child: FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: strength,
                     child: Container(
-                      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(
+                          color: color, borderRadius: BorderRadius.circular(2)),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+              Text(text,
+                  style: TextStyle(color: color, fontWeight: FontWeight.w600)),
             ],
           ),
         ],
         const SizedBox(height: 16),
         TextField(
-          controller: _confirmController, obscureText: true, autocorrect: false, enableSuggestions: false,
-          decoration: InputDecoration(labelText: 'Confirm Password', filled: true, fillColor: Colors.grey[900], border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), prefixIcon: Icon(Icons.lock_outline, color: Colors.white54)),
+          controller: _confirmController,
+          obscureText: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: InputDecoration(
+              labelText: 'Confirm Password',
+              filled: true,
+              fillColor: Colors.grey[900],
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              prefixIcon: Icon(Icons.lock_outline, color: Colors.white54)),
           style: const TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 32),
         SizedBox(
-          width: double.infinity, height: 56,
+          width: double.infinity,
+          height: 56,
           child: ElevatedButton(
             onPressed: _isLoading ? null : _submitMP,
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade700, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Create Vault', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey.shade700,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            child: const Text('Create Vault',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white)),
           ),
         ),
       ],
@@ -265,7 +332,10 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
       children: [
         const Icon(Icons.layers_outlined, size: 64, color: Colors.blueGrey),
         const SizedBox(height: 24),
-        const Text('Decoy Vault (Optional)', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white), textAlign: TextAlign.center),
+        const Text('Decoy Vault (Optional)',
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            textAlign: TextAlign.center),
         const SizedBox(height: 16),
         const Text(
           'Create a secondary vault with a different password.\n\n'
@@ -275,17 +345,26 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
         ),
         const SizedBox(height: 48),
         SizedBox(
-          width: double.infinity, height: 56,
+          width: double.infinity,
+          height: 56,
           child: ElevatedButton(
             onPressed: () => _onboarding.dispatch(CreateDecoy()),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade700, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Create Decoy', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueGrey.shade700,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12))),
+            child: const Text('Create Decoy',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white)),
           ),
         ),
         const SizedBox(height: 16),
         TextButton(
           onPressed: () => _onboarding.dispatch(SkipDecoy()),
-          child: const Text('Skip for now', style: TextStyle(color: Colors.white54, fontSize: 16)),
+          child: const Text('Skip for now',
+              style: TextStyle(color: Colors.white54, fontSize: 16)),
         ),
       ],
     );

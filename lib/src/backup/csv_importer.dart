@@ -20,7 +20,7 @@ class CsvImporter {
     for (int i = 1; i < lines.length; i++) {
       final values = _parseLine(lines[i]);
       if (values.isEmpty || (values.length == 1 && values[0].isEmpty)) continue;
-      
+
       final entry = <String, String>{};
       for (int j = 0; j < headers.length && j < values.length; j++) {
         switch (headers[j].toLowerCase()) {

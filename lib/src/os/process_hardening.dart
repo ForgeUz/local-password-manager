@@ -41,7 +41,8 @@ class ProcessHardening {
       final lib = DynamicLibrary.open('libc.so.6');
 
       final prctl = lib.lookupFunction<PrctlNative, PrctlDart>('prctl');
-      final mlockall = lib.lookupFunction<MlockallNative, MlockallDart>('mlockall');
+      final mlockall =
+          lib.lookupFunction<MlockallNative, MlockallDart>('mlockall');
 
       // Disable core dumps
       final prctlResult = prctl(_PR_SET_DUMPABLE, 0, 0, 0, 0);
@@ -117,9 +118,11 @@ class ProcessHardening {
         final ptrField = fprog.cast<Uint64>().asTypedList(2);
         ptrField[1] = prog.address;
 
-        final rc = prctl(_PR_SET_SECCOMP, _SECCOMP_MODE_FILTER, fprog.address, 0, 0);
+        final rc =
+            prctl(_PR_SET_SECCOMP, _SECCOMP_MODE_FILTER, fprog.address, 0, 0);
         if (rc != 0) {
-          print('WARN: Failed to install seccomp filter (rc=$rc). Kernel may lack seccomp.');
+          print(
+              'WARN: Failed to install seccomp filter (rc=$rc). Kernel may lack seccomp.');
         }
       } finally {
         calloc.free(fprog);

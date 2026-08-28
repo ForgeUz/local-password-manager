@@ -79,17 +79,20 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               if (titleCtrl.text.isNotEmpty) {
-                widget.service.addEntry(VaultEntry(
+                widget.service
+                    .addEntry(VaultEntry(
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
                   title: titleCtrl.text,
                   username: userCtrl.text,
                   password: passCtrl.text,
                   url: titleCtrl.text.toLowerCase(),
-                )).then((_) {
+                ))
+                    .then((_) {
                   Navigator.pop(ctx);
                 }).catchError((e) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
@@ -111,9 +114,8 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
     final all = state.vaultData.entries;
     final query = _query.trim();
     final ids = query.isEmpty ? null : widget.service.search(query);
-    final shown = query.isEmpty
-        ? all
-        : all.where((e) => ids!.contains(e.id)).toList();
+    final shown =
+        query.isEmpty ? all : all.where((e) => ids!.contains(e.id)).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -131,33 +133,62 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
             onSelected: (v) {
               switch (v) {
                 case 'totp':
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => TotpScreen()));
+                  Navigator.push(
+                      context, MaterialPageRoute(builder: (_) => TotpScreen()));
                   break;
                 case 'sync':
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => SyncScreen(service: widget.service)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => SyncScreen(service: widget.service)));
                   break;
                 case 'dashboard':
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => DashboardScreen(service: widget.service)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              DashboardScreen(service: widget.service)));
                   break;
                 case 'decoy':
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => DecoySetupScreen(service: widget.service)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              DecoySetupScreen(service: widget.service)));
                   break;
                 case 'settings':
-                  Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => SettingsScreen(service: widget.service)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              SettingsScreen(service: widget.service)));
                   break;
               }
             },
             itemBuilder: (ctx) => const [
-              PopupMenuItem(value: 'totp', child: ListTile(leading: Icon(Icons.timer), title: Text('TOTP Generator'))),
-              PopupMenuItem(value: 'sync', child: ListTile(leading: Icon(Icons.sync), title: Text('P2P Sync'))),
-              PopupMenuItem(value: 'dashboard', child: ListTile(leading: Icon(Icons.security), title: Text('Security Dashboard'))),
-              PopupMenuItem(value: 'decoy', child: ListTile(leading: Icon(Icons.visibility_off), title: Text('Secondary Vault'))),
-              PopupMenuItem(value: 'settings', child: ListTile(leading: Icon(Icons.settings), title: Text('Settings'))),
+              PopupMenuItem(
+                  value: 'totp',
+                  child: ListTile(
+                      leading: Icon(Icons.timer),
+                      title: Text('TOTP Generator'))),
+              PopupMenuItem(
+                  value: 'sync',
+                  child: ListTile(
+                      leading: Icon(Icons.sync), title: Text('P2P Sync'))),
+              PopupMenuItem(
+                  value: 'dashboard',
+                  child: ListTile(
+                      leading: Icon(Icons.security),
+                      title: Text('Security Dashboard'))),
+              PopupMenuItem(
+                  value: 'decoy',
+                  child: ListTile(
+                      leading: Icon(Icons.visibility_off),
+                      title: Text('Secondary Vault'))),
+              PopupMenuItem(
+                  value: 'settings',
+                  child: ListTile(
+                      leading: Icon(Icons.settings), title: Text('Settings'))),
             ],
           ),
         ],
@@ -187,12 +218,15 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
                     itemBuilder: (ctx, i) {
                       final entry = shown[i];
                       return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
                           title: Text(
                             entry.title,
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

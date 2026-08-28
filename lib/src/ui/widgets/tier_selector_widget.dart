@@ -57,9 +57,8 @@ class TierSelectorWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Get suggestion if domain provided
-    final suggestion = domain != null
-        ? TierUiHelper.suggestTierForDomain(domain!)
-        : null;
+    final suggestion =
+        domain != null ? TierUiHelper.suggestTierForDomain(domain!) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,8 +79,8 @@ class TierSelectorWidget extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               children: [
-                Icon(Icons.lightbulb_outline, size: 16,
-                    color: Colors.amber[700]),
+                Icon(Icons.lightbulb_outline,
+                    size: 16, color: Colors.amber[700]),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -188,7 +187,8 @@ class _TierOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uiInfo = TierUiHelper.getUiInfo(tier);
-    final color = Color(int.parse(uiInfo.colorHex.substring(1, 7), radix: 16) + 0xFF000000);
+    final color = Color(
+        int.parse(uiInfo.colorHex.substring(1, 7), radix: 16) + 0xFF000000);
     final actions = TierUiHelper.getActionDescriptions(tier);
 
     return InkWell(
@@ -203,7 +203,7 @@ class _TierOption extends StatelessWidget {
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: isSelected ? color.withOpacity(0.05) : null,
+          color: isSelected ? color.withValues(alpha: 0.05) : null,
         ),
         child: Row(
           children: [
@@ -244,8 +244,7 @@ class _TierOption extends StatelessWidget {
             ),
 
             // Selection indicator
-            if (isSelected)
-              Icon(Icons.check_circle, color: color, size: 20),
+            if (isSelected) Icon(Icons.check_circle, color: color, size: 20),
           ],
         ),
       ),

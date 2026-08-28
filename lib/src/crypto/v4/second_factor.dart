@@ -33,7 +33,7 @@ class SecondFactor {
   static const int _countSize = 1;
   static const int _hashSize = 32;
   static const int _maxAttempts = 3;
-  
+
   // SECURITY: Reduced memory for backup code hashing (was 64 MiB, now 16 MiB)
   // Still strong against brute force, better UX on mobile.
   static const int _backupCodeMemory = 16384; // 16 MiB in KiB
@@ -44,14 +44,20 @@ class SecondFactor {
   /// Returns the file bytes. The SFM is the TOTP seed (raw bytes).
   ///
   /// SECURITY: SFM is NOT zeroed here (caller's responsibility).
-  static Uint8List seal(Uint8List mkBase, Uint8List sfm, List<String> backupCodes) {
+  static Uint8List seal(
+      Uint8List mkBase, Uint8List sfm, List<String> backupCodes) {
     final nonce = _randomBytes(_nonceSize);
     final ct = AesGcm.encrypt(mkBase, nonce, Uint8List(0), sfm);
     final salt = _randomBytes(_saltSize);
     final hashes = backupCodes.map((c) => _hashCode(c, salt)).toList();
 
-    final out = Uint8List(_nonceSize + _lenSize + ct.length + _saltSize +
-        _attemptsSize + _countSize + hashes.length * _hashSize);
+    final out = Uint8List(_nonceSize +
+        _lenSize +
+        ct.length +
+        _saltSize +
+        _attemptsSize +
+        _countSize +
+        hashes.length * _hashSize);
     var o = 0;
     out.setRange(o, o + _nonceSize, nonce);
     o += _nonceSize;
@@ -85,40 +91,41 @@ class SecondFactor {
   /// the used code and record the attempt.
   static (Uint8List sfm, Uint8List updatedFile) open(
       Uint8List mkBase, Uint8List file, String code) {
-    
     // SECURITY: Bounds checking for file structure
-    if (file.length < _nonceSize + _lenSize + _saltSize + _attemptsSize + _countSize) {
+    if (file.length <
+        _nonceSize + _lenSize + _saltSize + _attemptsSize + _countSize) {
       throw BackupCodeError();
     }
-    
+
     final nonce = file.sublist(0, _nonceSize);
     final len = (file[_nonceSize] << 8) | file[_nonceSize + 1];
-    
+
     // SECURITY: Validate ciphertext length
     if (len > file.length - _nonceSize - _lenSize) {
       throw BackupCodeError();
     }
-    
+
     final ct = file.sublist(_nonceSize + _lenSize, _nonceSize + _lenSize + len);
-    final salt = file.sublist(_nonceSize + _lenSize + len,
-        _nonceSize + _lenSize + len + _saltSize);
+    final salt = file.sublist(
+        _nonceSize + _lenSize + len, _nonceSize + _lenSize + len + _saltSize);
     final attempts = file[_nonceSize + _lenSize + len + _saltSize];
     final count = file[_nonceSize + _lenSize + len + _saltSize + _attemptsSize];
-    final hashesStart = _nonceSize + _lenSize + len + _saltSize + _attemptsSize + _countSize;
+    final hashesStart =
+        _nonceSize + _lenSize + len + _saltSize + _attemptsSize + _countSize;
 
     if (attempts >= _maxAttempts) throw BackupCodeError(); // rate-limited
 
     final candidate = _hashCode(code, salt);
     var matched = -1;
-    
+
     try {
       for (var i = 0; i < count; i++) {
         // SECURITY: Bounds check for hash access
         if (hashesStart + (i + 1) * _hashSize > file.length) {
           throw BackupCodeError();
         }
-        final h = file.sublist(hashesStart + i * _hashSize,
-            hashesStart + (i + 1) * _hashSize);
+        final h = file.sublist(
+            hashesStart + i * _hashSize, hashesStart + (i + 1) * _hashSize);
         if (ConstantTime.equals(candidate, h)) {
           matched = i;
           break;
@@ -128,7 +135,7 @@ class SecondFactor {
       // CRITICAL: Zero candidate hash after comparison
       candidate.fillRange(0, candidate.length, 0);
     }
-    
+
     if (matched < 0) {
       // Wrong code: increment attempts, persist, fail before any decrypt.
       final updated = Uint8List.fromList(file);
@@ -151,7 +158,8 @@ class SecondFactor {
     var u = 0;
     updated.setRange(u, u + _nonceSize, nonce);
     u += _nonceSize;
-    updated.setRange(u, u + _lenSize, file.sublist(_nonceSize, _nonceSize + _lenSize));
+    updated.setRange(
+        u, u + _lenSize, file.sublist(_nonceSize, _nonceSize + _lenSize));
     u += _lenSize;
     updated.setRange(u, u + len, ct);
     u += len;
@@ -163,12 +171,12 @@ class SecondFactor {
     u += _countSize;
     for (var i = 0; i < count; i++) {
       if (i == matched) continue;
-      final h = file.sublist(hashesStart + i * _hashSize,
-          hashesStart + (i + 1) * _hashSize);
+      final h = file.sublist(
+          hashesStart + i * _hashSize, hashesStart + (i + 1) * _hashSize);
       updated.setRange(u, u + _hashSize, h);
       u += _hashSize;
     }
-    
+
     // SECURITY: Caller MUST zero sfm after use (contains TOTP seed)
     return (sfm, updated);
   }
@@ -183,14 +191,14 @@ class SecondFactor {
     if (file.length < _nonceSize + _lenSize) {
       throw BackupCodeError();
     }
-    
+
     final nonce = file.sublist(0, _nonceSize);
     final len = (file[_nonceSize] << 8) | file[_nonceSize + 1];
-    
+
     if (len > file.length - _nonceSize - _lenSize) {
       throw BackupCodeError();
     }
-    
+
     final ct = file.sublist(_nonceSize + _lenSize, _nonceSize + _lenSize + len);
     try {
       return AesGcm.decrypt(mkBase, nonce, Uint8List(0), ct);
@@ -203,21 +211,34 @@ class SecondFactor {
   /// backup-code hashes (same salt + hashes, so codes stay valid).
   ///
   /// SECURITY: SFM parameter is NOT zeroed here (caller's responsibility).
-  static Uint8List reSeal(Uint8List newMkBase, Uint8List oldFile, Uint8List sfm) {
+  static Uint8List reSeal(
+      Uint8List newMkBase, Uint8List oldFile, Uint8List sfm) {
     // SECURITY: Bounds checking
-    if (oldFile.length < _nonceSize + _lenSize + _saltSize + _attemptsSize + _countSize) {
+    if (oldFile.length <
+        _nonceSize + _lenSize + _saltSize + _attemptsSize + _countSize) {
       throw BackupCodeError();
     }
-    
+
     final nonce = _randomBytes(_nonceSize);
     final ct = AesGcm.encrypt(newMkBase, nonce, Uint8List(0), sfm);
     final salt = oldFile.sublist(_nonceSize + _lenSize + _ctLen(oldFile),
         _nonceSize + _lenSize + _ctLen(oldFile) + _saltSize);
-    final count = oldFile[_nonceSize + _lenSize + _ctLen(oldFile) + _saltSize + _attemptsSize];
-    final hashesStart = _nonceSize + _lenSize + _ctLen(oldFile) + _saltSize + _attemptsSize + _countSize;
+    final count = oldFile[
+        _nonceSize + _lenSize + _ctLen(oldFile) + _saltSize + _attemptsSize];
+    final hashesStart = _nonceSize +
+        _lenSize +
+        _ctLen(oldFile) +
+        _saltSize +
+        _attemptsSize +
+        _countSize;
 
-    final out = Uint8List(_nonceSize + _lenSize + ct.length + _saltSize +
-        _attemptsSize + _countSize + count * _hashSize);
+    final out = Uint8List(_nonceSize +
+        _lenSize +
+        ct.length +
+        _saltSize +
+        _attemptsSize +
+        _countSize +
+        count * _hashSize);
     var o = 0;
     out.setRange(o, o + _nonceSize, nonce);
     o += _nonceSize;
@@ -233,8 +254,8 @@ class SecondFactor {
     out[o] = count;
     o += _countSize;
     for (var i = 0; i < count; i++) {
-      final h = oldFile.sublist(hashesStart + i * _hashSize,
-          hashesStart + (i + 1) * _hashSize);
+      final h = oldFile.sublist(
+          hashesStart + i * _hashSize, hashesStart + (i + 1) * _hashSize);
       out.setRange(o, o + _hashSize, h);
       o += _hashSize;
     }

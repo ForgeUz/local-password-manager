@@ -20,7 +20,8 @@ class DecoySetupResult {
   final String cancellationCode; // 8-digit, shown once
   final Uint8List decoyBlob;
 
-  const DecoySetupResult({required this.cancellationCode, required this.decoyBlob});
+  const DecoySetupResult(
+      {required this.cancellationCode, required this.decoyBlob});
 }
 
 class DecoyVault {
@@ -33,7 +34,7 @@ class DecoyVault {
     required List<V4VaultEntry> entries,
   }) async {
     final salt = _randomBytes(V4Constants.saltSize);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       duressMp.readBytes(),
       salt,
       memory: V4Constants.kdfFloorMemory ~/ 1024,
@@ -60,7 +61,8 @@ class DecoyVault {
   // 8-digit cancellation code, CSPRNG-derived, shown exactly once.
   static String generateCancellationCode() {
     final r = Random.secure();
-    return (10000000 + r.nextInt(90000000)).toString(); // 8 digits, no leading 0
+    return (10000000 + r.nextInt(90000000))
+        .toString(); // 8 digits, no leading 0
   }
 
   static Uint8List _randomBytes(int length) {

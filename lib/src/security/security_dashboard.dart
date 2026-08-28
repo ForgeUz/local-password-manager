@@ -37,7 +37,15 @@ class SecurityDashboard {
 
   // Run all checks. Returns warnings for each entry (canaries excluded by caller).
   static List<DashboardWarning> analyze({
-    required List<({String id, String title, String password, int updatedAt, String domain})> entries,
+    required List<
+            ({
+              String id,
+              String title,
+              String password,
+              int updatedAt,
+              String domain
+            })>
+        entries,
     int now = 0,
     int staleDays = 180,
   }) {
@@ -69,7 +77,9 @@ class SecurityDashboard {
         ));
       }
       // Old: not updated in > staleDays.
-      if (now > 0 && e.updatedAt > 0 && now - e.updatedAt > staleDays * 24 * 3600 * 1000) {
+      if (now > 0 &&
+          e.updatedAt > 0 &&
+          now - e.updatedAt > staleDays * 24 * 3600 * 1000) {
         final days = ((now - e.updatedAt) / (24 * 3600 * 1000)).floor();
         warnings.add(DashboardWarning(
           severity: 'medium',

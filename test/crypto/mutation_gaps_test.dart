@@ -118,7 +118,7 @@ void main() {
       final password = Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]);
       final salt = Uint8List(16);
       
-      final mk = await Argon2id.derive(
+      final mk = Argon2id.derive(
         password,
         salt,
         memory: 8192, // libsodium Argon2id minimum (8 MiB)

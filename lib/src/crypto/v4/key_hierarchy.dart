@@ -20,32 +20,33 @@ class KeyHierarchy {
 
   /// Derive VRK from MK. If TOTP-bound 2FA is enabled, the TOTP code is folded
   /// into the HKDF input: VRK = HKDF(MK || totpBytes, "GENESIS-VRK-v4")
-  /// 
+  ///
   /// SECURITY: IKM (MK || TOTP) is zeroed after derivation.
   static Uint8List deriveVrk(Uint8List mk, {Uint8List? totpBytes}) {
     final salt = Uint8List(32); // empty salt -> zeros (HKDF extract)
-    
+
     if (totpBytes == null || totpBytes.isEmpty) {
       return Hkdf.derive(mk, salt, _vrkInfo, V4Constants.keySize);
     }
-    
+
     // Prepend TOTP bytes to MK for the HKDF IKM input.
     final ikm = Uint8List(mk.length + totpBytes.length);
     ikm.setRange(0, mk.length, mk);
     ikm.setRange(mk.length, ikm.length, totpBytes);
-    
+
     final result = Hkdf.derive(ikm, salt, _vrkInfo, V4Constants.keySize);
-    
+
     // CRITICAL: Zero IKM (contains MK + TOTP) after use
     ikm.fillRange(0, ikm.length, 0);
-    
+
     return result;
   }
 
   /// Generate a random DEK using CSPRNG.
   static Uint8List generateDek() {
     final random = Random.secure();
-    return Uint8List.fromList(List.generate(V4Constants.keySize, (_) => random.nextInt(256)));
+    return Uint8List.fromList(
+        List.generate(V4Constants.keySize, (_) => random.nextInt(256)));
   }
 
   /// Wrap a DEK under VRK using AES-GCM.
@@ -62,7 +63,8 @@ class KeyHierarchy {
   /// Unwrap a DEK from VRK-wrapped ciphertext.
   /// Throws StateError if ciphertext too short or GCM tag fails.
   static Uint8List unwrapDek(Uint8List vrk, Uint8List wrapped) {
-    if (wrapped.length < _nonceSize + 16) throw StateError('wrapped DEK too short');
+    if (wrapped.length < _nonceSize + 16)
+      throw StateError('wrapped DEK too short');
     final nonce = wrapped.sublist(0, _nonceSize);
     final ct = wrapped.sublist(_nonceSize);
     return AesGcm.decrypt(vrk, nonce, Uint8List(0), ct);
@@ -70,6 +72,7 @@ class KeyHierarchy {
 
   static Uint8List _freshNonce() {
     final random = Random.secure();
-    return Uint8List.fromList(List.generate(_nonceSize, (_) => random.nextInt(256)));
+    return Uint8List.fromList(
+        List.generate(_nonceSize, (_) => random.nextInt(256)));
   }
 }

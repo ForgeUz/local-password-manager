@@ -186,7 +186,8 @@ class _TotpQrScannerScreenState extends ConsumerState<TotpQrScannerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _infoRow('Issuer', config.issuer.isEmpty ? '(none)' : config.issuer),
+                  _infoRow('Issuer',
+                      config.issuer.isEmpty ? '(none)' : config.issuer),
                   const Divider(),
                   _infoRow('Account', config.accountName),
                   const Divider(),
@@ -321,7 +322,8 @@ class _TotpQrScannerScreenState extends ConsumerState<TotpQrScannerScreen> {
           children: [
             TextField(
               controller: issuerController,
-              decoration: const InputDecoration(labelText: 'Issuer (e.g., GitHub)'),
+              decoration:
+                  const InputDecoration(labelText: 'Issuer (e.g., GitHub)'),
             ),
             TextField(
               controller: accountController,

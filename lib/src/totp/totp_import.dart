@@ -111,7 +111,8 @@ class TotpUriParser {
 
     // Step 4: Parse label (path component)
     // Format: /ISSUER:ACCOUNT or /ACCOUNT
-    final String path = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+    final String path =
+        uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
     final labelParts = _parseLabel(path);
     if (labelParts == null) {
       return const TotpImportError(TotpParseError.missingLabel);
@@ -175,7 +176,10 @@ class TotpUriParser {
 
     if (decoded.contains(':')) {
       final parts = decoded.split(':');
-      return (issuer: parts[0].trim(), account: parts.sublist(1).join(':').trim());
+      return (
+        issuer: parts[0].trim(),
+        account: parts.sublist(1).join(':').trim()
+      );
     }
     return (issuer: '', account: decoded.trim());
   }
@@ -286,13 +290,17 @@ class GoogleAuthExportParser {
       }
 
       // SECURITY: Safe type extraction to prevent TypeError on malformed JSON.
-      final String? issuer = item['issuer'] is String ? item['issuer'] as String : null;
-      final String? accountName = item['accountName'] is String ? item['accountName'] as String : null;
-      final String? secretB32 = item['secret'] is String ? item['secret'] as String : null;
+      final String? issuer =
+          item['issuer'] is String ? item['issuer'] as String : null;
+      final String? accountName =
+          item['accountName'] is String ? item['accountName'] as String : null;
+      final String? secretB32 =
+          item['secret'] is String ? item['secret'] as String : null;
       final int digits = item['digits'] is int ? item['digits'] as int : 6;
       final int period = item['period'] is int ? item['period'] as int : 30;
-      final String algorithmStr = item['algorithm'] is String ? item['algorithm'] as String : 'SHA1';
-      
+      final String algorithmStr =
+          item['algorithm'] is String ? item['algorithm'] as String : 'SHA1';
+
       // Validate required fields
       if (accountName == null || secretB32 == null) {
         return const TotpImportError(TotpParseError.missingSecret);

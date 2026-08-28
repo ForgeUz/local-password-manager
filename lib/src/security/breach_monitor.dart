@@ -15,7 +15,8 @@ class BreachResult {
   final String prefix; // 5-char k-anonymity prefix
   final String? fullHash; // always null — never exposed
 
-  const BreachResult({required this.breached, required this.prefix, this.fullHash});
+  const BreachResult(
+      {required this.breached, required this.prefix, this.fullHash});
 }
 
 class BreachMonitor {

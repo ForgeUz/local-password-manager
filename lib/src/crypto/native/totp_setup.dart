@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import '../native/argon2id.dart';
 import '../native/constant_time.dart';
 import 'totp.dart';
-import 'dart:io';
 
 // Intent: TOTP 2FA setup + backup codes (v3 §12.7 / Phase H.1/H).
 // Generates a 160-bit seed (RFC 4226), encodes as Base32 for QR display, and
@@ -18,12 +17,14 @@ class TotpSetup {
   // Generate a fresh 160-bit TOTP seed, returning raw bytes + Base32 string.
   static (Uint8List seed, String base32) generateSeed() {
     final r = Random.secure();
-    final seed = Uint8List.fromList(List.generate(seedBytes, (_) => r.nextInt(256)));
+    final seed =
+        Uint8List.fromList(List.generate(seedBytes, (_) => r.nextInt(256)));
     return (seed, Totp.encodeBase32(seed));
   }
 
   // Build the otpauth:// URI for QR code display.
-  static String otpauthUri(String base32, {String issuer = 'Vault', String account = ''}) {
+  static String otpauthUri(String base32,
+      {String issuer = 'Vault', String account = ''}) {
     return 'otpauth://totp/$issuer:${account.isEmpty ? 'user' : account}?secret=$base32&issuer=$issuer&algorithm=SHA256&digits=6&period=30';
   }
 
@@ -37,7 +38,8 @@ class TotpSetup {
       final b = 1000 + r.nextInt(9000);
       return '$a-$b';
     });
-    return BackupCodes(codes: codes, hashed: <String, String>{}); // filled by hash
+    return BackupCodes(
+        codes: codes, hashed: <String, String>{}); // filled by hash
   }
 
   // Hash a backup code (for storage in the separated file).
@@ -49,11 +51,13 @@ class TotpSetup {
       iterations: 3,
       parallelism: 1,
     );
-    return h.fold<String>('', (a, b) => a + b.toRadixString(16).padLeft(2, '0'));
+    return h.fold<String>(
+        '', (a, b) => a + b.toRadixString(16).padLeft(2, '0'));
   }
 
   // Verify a submitted backup code against the stored hashes (single-use).
-  static bool verifyBackupCode(String code, List<String> hashed, Uint8List salt) {
+  static bool verifyBackupCode(
+      String code, List<String> hashed, Uint8List salt) {
     final candidate = hashBackupCode(code, salt);
     final candBytes = _fromHex(candidate);
     for (final h in hashed) {

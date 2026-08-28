@@ -32,7 +32,8 @@ class NoiseSession {
   DateTime? _windowStart;
   DateTime? _cooldownUntil;
 
-  NoiseSession(this._transport, {DateTime Function()? now}) : _now = now ?? DateTime.now;
+  NoiseSession(this._transport, {DateTime Function()? now})
+      : _now = now ?? DateTime.now;
 
   NoiseState get state => _state;
 
@@ -62,7 +63,8 @@ class NoiseSession {
     if (ok) {
       // TOFU: pin the peer's static key (deterministic mock key).
       final peerKey = _pinForKey(pin);
-      _state = NoiseState(PairStatus.paired, attempts: _state.attempts, pinnedPeerKey: peerKey);
+      _state = NoiseState(PairStatus.paired,
+          attempts: _state.attempts, pinnedPeerKey: peerKey);
       return _state;
     }
 

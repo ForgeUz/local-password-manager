@@ -31,7 +31,8 @@ class NativeLinuxTray implements TrayPlatform {
   }
 
   @override
-  Future<void> updateState({required String icon, required String tooltip}) async {
+  Future<void> updateState(
+      {required String icon, required String tooltip}) async {
     try {
       await _channel.invokeMethod('updateState', {
         'icon': icon,
@@ -54,7 +55,7 @@ class NativeLinuxHotkey implements HotkeyPlatform {
       }
       return null;
     });
-    
+
     try {
       await _channel.invokeMethod('registerHotkey');
     } on PlatformException {

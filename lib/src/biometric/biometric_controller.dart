@@ -12,7 +12,8 @@ class BiometricController {
   BiometricController({
     required BiometricPlatform platform,
     required void Function(LockIntent) dispatch,
-  }) : _platform = platform, _dispatch = dispatch;
+  })  : _platform = platform,
+        _dispatch = dispatch;
 
   Future<void> authenticate() async {
     try {

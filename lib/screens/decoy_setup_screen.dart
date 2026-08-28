@@ -132,8 +132,8 @@ class _DecoySetupScreenState extends State<DecoySetupScreen> {
 
     // Fail-closed: any error surfaces as a SnackBar, never a crash.
     try {
-      _confirmationCode =
-          await widget.service.setupDecoy(primaryMp, mp, DecoySetupScreen._secondaryEntries());
+      _confirmationCode = await widget.service
+          .setupDecoy(primaryMp, mp, DecoySetupScreen._secondaryEntries());
       if (mounted) setState(() => _codeShown = true);
     } catch (e) {
       if (mounted) {
@@ -163,7 +163,8 @@ class _DecoySetupScreenState extends State<DecoySetupScreen> {
               const SizedBox(height: 12),
               Text(
                 _confirmationCode ?? '',
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -198,19 +199,22 @@ class _DecoySetupScreenState extends State<DecoySetupScreen> {
             TextField(
               controller: _primaryController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Primary Master Password'),
+              decoration:
+                  const InputDecoration(labelText: 'Primary Master Password'),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _secondaryController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Secondary Master Password'),
+              decoration:
+                  const InputDecoration(labelText: 'Secondary Master Password'),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _confirmController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirm Secondary Password'),
+              decoration: const InputDecoration(
+                  labelText: 'Confirm Secondary Password'),
             ),
             const SizedBox(height: 16),
             const Text(

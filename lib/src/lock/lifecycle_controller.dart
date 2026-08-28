@@ -22,7 +22,8 @@ class LifecycleController with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       _lockedOnPause = true;
       _isBackgrounded = true;
       // FIX: Force lock immediately, then schedule a backup lock after 1s

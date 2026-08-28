@@ -43,7 +43,7 @@ void main() {
       expect(bundle.length, 32);
 
       // Fresh token -> fails (not stale).
-      final f1 = () => Inheritance.activate(
+      Uint8List f1() => Inheritance.activate(
             shares: setup.shares.sublist(0, 3),
             k: 3,
             token: freshToken,
@@ -56,7 +56,7 @@ void main() {
       expect(f1, throwsA(isA<InheritanceActivationError>()));
 
       // < K shares -> fails.
-      final f2 = () => Inheritance.activate(
+      Uint8List f2() => Inheritance.activate(
             shares: setup.shares.sublist(0, 2), // 2 < K=3
             k: 3,
             token: staleToken,

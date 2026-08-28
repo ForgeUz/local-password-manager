@@ -13,7 +13,8 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Security Dashboard')),
       body: warnings.isEmpty
-          ? const Center(child: Text('No security warnings. Your vault looks healthy.'))
+          ? const Center(
+              child: Text('No security warnings. Your vault looks healthy.'))
           : ListView.builder(
               itemCount: warnings.length,
               itemBuilder: (ctx, i) {

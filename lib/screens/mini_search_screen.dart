@@ -58,9 +58,8 @@ class _MiniSearchScreenState extends State<MiniSearchScreen> {
     }
     final query = _query.trim();
     final ids = query.isEmpty ? null : widget.service.search(query);
-    final shown = query.isEmpty
-        ? all
-        : all.where((e) => ids!.contains(e.id)).toList();
+    final shown =
+        query.isEmpty ? all : all.where((e) => ids!.contains(e.id)).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Quick Search (Ctrl+Shift+Space)')),

@@ -104,7 +104,8 @@ class V4VaultEntry {
         'domain': domain,
         'tier': tier,
         if (isCanary) 'isCanary': true,
-        if (passkeyCredentialId != null) 'passkeyCredentialId': passkeyCredentialId,
+        if (passkeyCredentialId != null)
+          'passkeyCredentialId': passkeyCredentialId,
         if (updatedAt != 0) 'updatedAt': updatedAt,
       };
 
@@ -138,14 +139,14 @@ class VaultCryptoV4 {
     Uint8List salt,
   ) async {
     final entries = _parseEntries(jsonUtf8);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       duressMp.readBytes(),
       salt,
       memory: V4Constants.kdfFloorMemory ~/ 1024,
       iterations: V4Constants.kdfFloorIterations,
       parallelism: V4Constants.kdfFloorParallelism,
     );
-    
+
     try {
       final vrkDuress = Duress.deriveVrkDuress(mk);
       try {
@@ -173,19 +174,21 @@ class VaultCryptoV4 {
   ///
   /// SECURITY: mp and intermediate keys are zeroed after use.
   Future<Uint8List> lockVault(Uint8List jsonUtf8, SecureBuffer mp,
-      {Uint8List? totpBytes, Uint8List? decoyBlob, Uint8List? fixedSalt}) async {
+      {Uint8List? totpBytes,
+      Uint8List? decoyBlob,
+      Uint8List? fixedSalt}) async {
     final entries = _parseEntries(jsonUtf8);
     final salt = fixedSalt ?? _randomBytes(V4Constants.saltSize);
     final nonce = _randomBytes(V4Constants.nonceSize);
 
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       mp.readBytes(),
       salt,
       memory: V4Constants.kdfFloorMemory ~/ 1024,
       iterations: V4Constants.kdfFloorIterations,
       parallelism: V4Constants.kdfFloorParallelism,
     );
-    
+
     try {
       final vrk = KeyHierarchy.deriveVrk(mk, totpBytes: totpBytes);
       try {
@@ -248,7 +251,8 @@ class VaultCryptoV4 {
       final dek = KeyHierarchy.generateDek();
       try {
         final wrappedDek = KeyHierarchy.wrapDek(vrk, dek);
-        final entryJson = Uint8List.fromList(utf8.encode(jsonEncode(e.toJson())));
+        final entryJson =
+            Uint8List.fromList(utf8.encode(jsonEncode(e.toJson())));
         final bucket = Padding.pickBucket(entryJson.length);
         final padded = Padding.pad(entryJson, bucket);
         final entryNonce = _randomBytes(V4Constants.nonceSize);
@@ -288,7 +292,8 @@ class VaultCryptoV4 {
 
     // Header MAC (v5 E12): AES-256-GCM with EMPTY plaintext over header-as-AAD.
     // The 16-byte tag IS the header authentication. No ambiguity.
-    final outerTag = AesGcm.encrypt(vrk, Uint8List(12), headerBytes, Uint8List(0)); // MUTATION: wrong nonce
+    final outerTag = AesGcm.encrypt(
+        vrk, Uint8List(12), headerBytes, Uint8List(0)); // MUTATION: wrong nonce
 
     final blob = Uint8List(headerBytes.length + slot2.length + outerTag.length);
     blob.setRange(0, headerBytes.length, headerBytes);
@@ -325,7 +330,8 @@ class VaultCryptoV4 {
         final ct = rec.ciphertext.sublist(_nonceSize);
         final padded = AesGcm.decrypt(dek, entryNonce, Uint8List(0), ct);
         final entryJson = Padding.unpad(padded);
-        final jsonMap = jsonDecode(utf8.decode(entryJson)) as Map<String, dynamic>;
+        final jsonMap =
+            jsonDecode(utf8.decode(entryJson)) as Map<String, dynamic>;
         entries.add(V4VaultEntry.fromJson(jsonMap));
       } catch (_) {
         // SECURITY: All errors become DecryptionFailedError (no error oracle)
@@ -354,14 +360,14 @@ class VaultCryptoV4 {
       throw CorruptBlobError();
     }
     final header = V4Header.parse(blob);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       mp.readBytes(),
       header.salt,
       memory: header.kdfMemory,
       iterations: header.kdfIterations,
       parallelism: header.kdfParallelism,
     );
-    
+
     try {
       final vrk = KeyHierarchy.deriveVrk(mk, totpBytes: totpBytes);
       return _decryptSession(blob, header, vrk);
@@ -374,20 +380,20 @@ class VaultCryptoV4 {
   /// v5 E2: unlock via a released SecondFactorMaterial (SFM).
   ///
   /// SECURITY: sfm is NOT zeroed here (caller's responsibility).
-  Future<UnlockSession> unlockWithSfm(Uint8List blob, SecureBuffer mp,
-      Uint8List sfm) async {
+  Future<UnlockSession> unlockWithSfm(
+      Uint8List blob, SecureBuffer mp, Uint8List sfm) async {
     if (blob.length < V4Constants.fixedHeaderSize + V4Constants.tagSize) {
       throw CorruptBlobError();
     }
     final header = V4Header.parse(blob);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       mp.readBytes(),
       header.salt,
       memory: header.kdfMemory,
       iterations: header.kdfIterations,
       parallelism: header.kdfParallelism,
     );
-    
+
     try {
       final vrk = KeyHierarchy.deriveVrk(mk, totpBytes: sfm);
       return _decryptSession(blob, header, vrk);
@@ -400,27 +406,28 @@ class VaultCryptoV4 {
   /// v5 E2: unlock via a valid backup code.
   ///
   /// SECURITY: mp, MK, and SFM are handled securely. SFM is zeroed after use.
-  Future<UnlockSessionResult> unlockWithBackupCode(Uint8List blob,
-      SecureBuffer mp, Uint8List sfmFile, String code) async {
+  Future<UnlockSessionResult> unlockWithBackupCode(
+      Uint8List blob, SecureBuffer mp, Uint8List sfmFile, String code) async {
     if (blob.length < V4Constants.fixedHeaderSize + V4Constants.tagSize) {
       throw CorruptBlobError();
     }
     final header = V4Header.parse(blob);
-    final mkBase = await Argon2id.derive(
+    final mkBase = Argon2id.derive(
       mp.readBytes(),
       header.salt,
       memory: header.kdfMemory,
       iterations: header.kdfIterations,
       parallelism: header.kdfParallelism,
     );
-    
+
     try {
       // Code-gated SFM release. Throws BackupCodeError before any decrypt.
       final (sfm, updatedFile) = SecondFactor.open(mkBase, sfmFile, code);
       try {
         final vrk = KeyHierarchy.deriveVrk(mkBase, totpBytes: sfm);
         final session = _decryptSession(blob, header, vrk);
-        return UnlockSessionResult(session: session, updatedSfmFile: updatedFile);
+        return UnlockSessionResult(
+            session: session, updatedSfmFile: updatedFile);
       } finally {
         // CRITICAL: Zero SFM after use
         sfm.fillRange(0, sfm.length, 0);
@@ -434,8 +441,9 @@ class VaultCryptoV4 {
   /// v5 E17/V3.3: ATOMIC master-password change.
   ///
   /// SECURITY: All intermediate keys are zeroed after use.
-  Future<MpChangeResult> changeMasterPassword(Uint8List blob,
-      SecureBuffer oldMp, SecureBuffer newMp, {Uint8List? sfmFile}) async {
+  Future<MpChangeResult> changeMasterPassword(
+      Uint8List blob, SecureBuffer oldMp, SecureBuffer newMp,
+      {Uint8List? sfmFile}) async {
     if (blob.length < V4Constants.fixedHeaderSize + V4Constants.tagSize) {
       throw CorruptBlobError();
     }
@@ -443,14 +451,14 @@ class VaultCryptoV4 {
     final salt = header.salt;
 
     // Old MK_base + (if 2FA) reveal SFM under it.
-    final oldMkBase = await Argon2id.derive(
+    final oldMkBase = Argon2id.derive(
       oldMp.readBytes(),
       salt,
       memory: header.kdfMemory,
       iterations: header.kdfIterations,
       parallelism: header.kdfParallelism,
     );
-    
+
     Uint8List? sfm;
     try {
       if (sfmFile != null) {
@@ -458,17 +466,18 @@ class VaultCryptoV4 {
       }
       final oldVrk = KeyHierarchy.deriveVrk(oldMkBase, totpBytes: sfm);
       try {
-        final entries = decryptToEntries(blob, oldVrk); // throws if old MP wrong
+        final entries =
+            decryptToEntries(blob, oldVrk); // throws if old MP wrong
 
         // New MK_base + new VRK (same SFM seed — 2FA survives).
-        final newMkBase = await Argon2id.derive(
+        final newMkBase = Argon2id.derive(
           newMp.readBytes(),
           salt,
           memory: header.kdfMemory,
           iterations: header.kdfIterations,
           parallelism: header.kdfParallelism,
         );
-        
+
         try {
           final newVrk = KeyHierarchy.deriveVrk(newMkBase, totpBytes: sfm);
           try {
@@ -517,19 +526,20 @@ class VaultCryptoV4 {
   /// Unlock with a duress-derived VRK.
   ///
   /// SECURITY: mp and MK are zeroed after use.
-  Future<UnlockSession> duressUnlockSession(Uint8List blob, SecureBuffer mp) async {
+  Future<UnlockSession> duressUnlockSession(
+      Uint8List blob, SecureBuffer mp) async {
     if (blob.length < V4Constants.fixedHeaderSize + V4Constants.tagSize) {
       throw CorruptBlobError();
     }
     final header = V4Header.parse(blob);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       mp.readBytes(),
       header.salt,
       memory: header.kdfMemory,
       iterations: header.kdfIterations,
       parallelism: header.kdfParallelism,
     );
-    
+
     try {
       final vrkDuress = Duress.deriveVrkDuress(mk);
       try {
@@ -555,7 +565,8 @@ class VaultCryptoV4 {
   }
 
   /// Shared: build the session from a derived VRK (primary or duress).
-  UnlockSession _decryptSession(Uint8List blob, V4Header header, Uint8List vrk) {
+  UnlockSession _decryptSession(
+      Uint8List blob, V4Header header, Uint8List vrk) {
     final vrkBuf = SecureBuffer.fromList(vrk);
     // Verify outer tag; wrong VRK fails here.
     decryptToEntries(blob, vrkBuf.readBytes());
@@ -570,7 +581,8 @@ class VaultCryptoV4 {
         final ct = rec.ciphertext.sublist(_nonceSize);
         final padded = AesGcm.decrypt(dek, entryNonce, Uint8List(0), ct);
         final entryJson = Padding.unpad(padded);
-        final jsonMap = jsonDecode(utf8.decode(entryJson)) as Map<String, dynamic>;
+        final jsonMap =
+            jsonDecode(utf8.decode(entryJson)) as Map<String, dynamic>;
         final entry = V4VaultEntry.fromJson(jsonMap);
         entries.add(entry);
         searchTags[entry.id] = rec.searchTags;
@@ -587,16 +599,24 @@ class VaultCryptoV4 {
     final entries = session.entries;
     // Caller owns the VRK lifecycle; for the flat interface, dispose it.
     session.vrk.dispose();
-    final outJson = jsonEncode({'entries': entries.map((e) => e.toJson()).toList()});
+    final outJson =
+        jsonEncode({'entries': entries.map((e) => e.toJson()).toList()});
     return Uint8List.fromList(utf8.encode(outJson));
   }
 
   static int _headerLength(V4Header h) {
     var len = V4Constants.fixedHeaderSize + 2;
     for (final rec in h.entries) {
-      len += V4Constants.uuidSize + 1 + 2 + rec.wrappedDek.length +
-          2 + rec.searchTags.length * V4Constants.searchTagSize +
-          2 + rec.vectorClock.length + 4 + rec.ciphertext.length;
+      len += V4Constants.uuidSize +
+          1 +
+          2 +
+          rec.wrappedDek.length +
+          2 +
+          rec.searchTags.length * V4Constants.searchTagSize +
+          2 +
+          rec.vectorClock.length +
+          4 +
+          rec.ciphertext.length;
     }
     return len;
   }
@@ -604,12 +624,15 @@ class VaultCryptoV4 {
   static List<V4VaultEntry> _parseEntries(Uint8List jsonUtf8) {
     final jsonMap = jsonDecode(utf8.decode(jsonUtf8)) as Map<String, dynamic>;
     final list = (jsonMap['entries'] as List? ?? const []);
-    return list.map((e) => V4VaultEntry.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => V4VaultEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   static Uint8List _randomBytes(int length) {
     final random = Random.secure();
-    return Uint8List.fromList(List.generate(length, (_) => random.nextInt(256)));
+    return Uint8List.fromList(
+        List.generate(length, (_) => random.nextInt(256)));
   }
 
   /// Encode a string entry id into a fixed 16-byte UUID field.
@@ -618,7 +641,9 @@ class VaultCryptoV4 {
     // Use first 16 bytes of UTF-8 encoding, padded with zeros if shorter
     final bytes = Uint8List.fromList(utf8.encode(id));
     final out = Uint8List(V4Constants.uuidSize);
-    final n = bytes.length < V4Constants.uuidSize ? bytes.length : V4Constants.uuidSize;
+    final n = bytes.length < V4Constants.uuidSize
+        ? bytes.length
+        : V4Constants.uuidSize;
     out.setRange(0, n, bytes.sublist(0, n));
     return out;
   }

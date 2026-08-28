@@ -120,9 +120,21 @@ class TierUiHelper {
 
     // Banking / financial
     final bankingPatterns = [
-      'bank', 'chase', 'wellsfargo', 'citi', 'hsbc', 'barclays',
-      'paypal', 'venmo', 'coinbase', 'binance', 'kraken',
-      'stripe', 'square', 'revolut', 'wise',
+      'bank',
+      'chase',
+      'wellsfargo',
+      'citi',
+      'hsbc',
+      'barclays',
+      'paypal',
+      'venmo',
+      'coinbase',
+      'binance',
+      'kraken',
+      'stripe',
+      'square',
+      'revolut',
+      'wise',
     ];
     if (bankingPatterns.any((p) => lower.contains(p))) {
       return SecurityTier.critical;
@@ -141,7 +153,13 @@ class TierUiHelper {
     }
 
     // Crypto exchanges
-    final cryptoPatterns = ['coinbase', 'binance', 'kraken', 'gemini', 'bitstamp'];
+    final cryptoPatterns = [
+      'coinbase',
+      'binance',
+      'kraken',
+      'gemini',
+      'bitstamp'
+    ];
     if (cryptoPatterns.any((p) => lower.contains(p))) {
       return SecurityTier.critical;
     }

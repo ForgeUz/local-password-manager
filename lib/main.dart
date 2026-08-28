@@ -15,7 +15,7 @@ import 'src/vault/vault_storage.dart';
 import 'src/desktop/native_linux.dart';
 import 'src/desktop/tray_controller.dart';
 import 'src/desktop/hotkey_controller.dart';
-import 'src/autofill/android_autofill_bridge.dart'; 
+import 'src/autofill/android_autofill_bridge.dart';
 import 'screens/corrupt_blob_screen.dart';
 import 'screens/lock_screen.dart';
 import 'screens/mini_search_screen.dart';
@@ -39,7 +39,8 @@ void main() async {
   final appStore = AppStore();
   final vaultCrypto = VaultCryptoV4();
   final storage = VaultStorage(baseDir: appDir);
-  final vaultService = VaultService(store: appStore, crypto: vaultCrypto, storage: storage);
+  final vaultService =
+      VaultService(store: appStore, crypto: vaultCrypto, storage: storage);
   final clipboardController = ClipboardController(
     platform: NativeClipboard(),
     wipeDuration: const Duration(seconds: 30),
@@ -47,7 +48,8 @@ void main() async {
 
   await vaultService.init();
 
-  runApp(VaultApp(store: appStore, service: vaultService, clipboard: clipboardController));
+  runApp(VaultApp(
+      store: appStore, service: vaultService, clipboard: clipboardController));
 }
 
 // Rendered when libsodium (or another native crypto primitive) fails to load.
@@ -81,7 +83,8 @@ class _NativeMissingError extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
-                Text('$error', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('$error',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
@@ -106,6 +109,7 @@ class VaultApp extends StatefulWidget {
   @override
   State<VaultApp> createState() => _VaultAppState();
 }
+
 // Global observer that redirects to LockScreen if vault is locked
 class _LockObserver extends NavigatorObserver {
   final AppStore store;
@@ -113,7 +117,8 @@ class _LockObserver extends NavigatorObserver {
   final BuildContext Function() getContext;
   bool _isNavigating = false;
 
-  _LockObserver({required this.store, required this.service, required this.getContext});
+  _LockObserver(
+      {required this.store, required this.service, required this.getContext});
 
   @override
   void didPop(Route route, Route? previousRoute) {
@@ -137,10 +142,10 @@ class _LockObserver extends NavigatorObserver {
 
   void _checkLockState() {
     if (_isNavigating) return;
-    
+
     final state = store.currentState;
     debugPrint('LockObserver: state is ${state.runtimeType}');
-    
+
     if (state is Locked) {
       // Guard: on the very first frame the Navigator/context may not exist yet.
       // getContext() null-asserts, so resolve defensively and bail if null.
@@ -153,7 +158,7 @@ class _LockObserver extends NavigatorObserver {
       if (!ctx.mounted) return;
       {
         _isNavigating = true;
-        
+
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (ctx.mounted) {
             // maybeOf: during the warm-up frame no Navigator exists yet, and
@@ -166,7 +171,8 @@ class _LockObserver extends NavigatorObserver {
             debugPrint('LockObserver: forcing navigation to LockScreen');
             nav.pushAndRemoveUntil(
               MaterialPageRoute(
-                builder: (_) => LockScreen(store: store, service: service, blob: state.blob),
+                builder: (_) => LockScreen(
+                    store: store, service: service, blob: state.blob),
                 fullscreenDialog: true,
               ),
               (route) => false,
@@ -182,8 +188,8 @@ class _LockObserver extends NavigatorObserver {
 class _VaultAppState extends State<VaultApp> {
   late final LifecycleController _lifecycle;
   late final PostureTimer _postureTimer;
-  late final _LockObserver _lockObserver; 
-  AndroidAutofillBridge? _autofillBridge; 
+  late final _LockObserver _lockObserver;
+  AndroidAutofillBridge? _autofillBridge;
   TrayController? _tray;
   HotkeyController? _hotkey;
   BuildContext? _context;
@@ -231,10 +237,10 @@ class _VaultAppState extends State<VaultApp> {
       _hotkey!.register();
     }
 
-    
     // Android autofill bridge: handles MethodChannel from VaultAutofillService
-    _autofillBridge = AndroidAutofillBridge(store: widget.store, service: widget.service);
- 
+    _autofillBridge =
+        AndroidAutofillBridge(store: widget.store, service: widget.service);
+
     widget.store.stateStream.listen((state) {
       _tray?.onStateChanged(state);
       if (state is Unlocked) {
@@ -271,16 +277,21 @@ class _VaultAppState extends State<VaultApp> {
           final state = widget.store.currentState;
 
           if (state is Unlocked) {
-            return UnlockedScreen(store: widget.store, service: widget.service, clipboard: widget.clipboard);
+            return UnlockedScreen(
+                store: widget.store,
+                service: widget.service,
+                clipboard: widget.clipboard);
           } else if (state is SetupRequired) {
             return SetupScreen(service: widget.service);
           } else if (state is BlobCorrupt) {
             return CorruptBlobScreen(service: widget.service);
           } else if (state is Locked) {
-            return LockScreen(store: widget.store, service: widget.service, blob: state.blob);
+            return LockScreen(
+                store: widget.store, service: widget.service, blob: state.blob);
           }
 
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         },
       ),
     );

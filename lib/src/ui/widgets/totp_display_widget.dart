@@ -190,8 +190,8 @@ class _TotpDisplayWidgetState extends State<TotpDisplayWidget>
           // Header: issuer + account
           Row(
             children: [
-              Icon(Icons.security, size: 18,
-                  color: Theme.of(context).colorScheme.primary),
+              Icon(Icons.security,
+                  size: 18, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -223,9 +223,7 @@ class _TotpDisplayWidgetState extends State<TotpDisplayWidget>
                       color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: _justCopied
-                            ? Colors.green
-                            : Colors.transparent,
+                        color: _justCopied ? Colors.green : Colors.transparent,
                         width: 2,
                       ),
                     ),

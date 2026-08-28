@@ -32,6 +32,7 @@ class ShamirKit {
     if (bytes.length < 2) throw StateError('invalid share');
     return Share(x: bytes[0], y: Uint8List.fromList(bytes.sublist(1)));
   }
+
   // AES irreducible polynomial x^8+x^4+x^3+x+1 = 0x11b.
   static const int _GF_POLY = 0x11b;
 
@@ -48,7 +49,8 @@ class ShamirKit {
     // For each secret byte, build ONE random degree-(k-1) polynomial whose
     // constant term is the secret byte. All shares of that byte must come from
     // the same polynomial, so generate coefficients once per byte.
-    final polys = List.generate(secret.length, (b) => _randomCoeffs(secret[b], k, r));
+    final polys =
+        List.generate(secret.length, (b) => _randomCoeffs(secret[b], k, r));
     final shares = <Share>[];
     for (final x in xs) {
       final y = Uint8List(secret.length);

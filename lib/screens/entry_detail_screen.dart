@@ -57,11 +57,16 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
 
     if (credId != null) {
       await widget.service.attachPasskey(widget.entryId, credId);
-      setState(() { _passkeyAttached = true; _creatingPasskey = false; });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passkey attached.')));
+      setState(() {
+        _passkeyAttached = true;
+        _creatingPasskey = false;
+      });
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Passkey attached.')));
     } else {
       setState(() => _creatingPasskey = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passkey creation cancelled or unsupported.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Passkey creation cancelled or unsupported.')));
     }
   }
 
@@ -92,7 +97,8 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Entry: ${widget.title}', style: const TextStyle(fontSize: 20)),
+            Text('Entry: ${widget.title}',
+                style: const TextStyle(fontSize: 20)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -115,19 +121,26 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
             // Теперь следующие виджеты относятся к списку children главного Column:
             const SizedBox(height: 12),
             ElevatedButton.icon(
-              onPressed: (_creatingPasskey || _passkeyAttached) ? null : _createPasskey,
-              icon: _creatingPasskey 
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              onPressed: (_creatingPasskey || _passkeyAttached)
+                  ? null
+                  : _createPasskey,
+              icon: _creatingPasskey
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.key),
-              label: Text(_passkeyAttached ? 'Passkey Attached' : 'Create Passkey'),
+              label: Text(
+                  _passkeyAttached ? 'Passkey Attached' : 'Create Passkey'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 40),
               ),
-            ),         
-            
+            ),
+
             if (_revealed) ...[
               const SizedBox(height: 24),
-              const Text('Password reveal is gated by secure memory. Password is available for copy.'),
+              const Text(
+                  'Password reveal is gated by secure memory. Password is available for copy.'),
             ],
           ],
         ),

@@ -1,7 +1,6 @@
 import 'dart:ffi';
 import 'dart:typed_data';
 import 'secure_buffer.dart';
-import 'dart:io';
 
 // Intent: Debug-only memory-dump verifier. Scans a SecureBuffer's native
 // region for a residual plaintext marker, proving sodium_memzero wiped it.

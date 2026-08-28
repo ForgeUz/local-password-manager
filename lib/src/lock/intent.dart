@@ -42,9 +42,13 @@ class BlobCorruptDetected implements LockIntent {
 }
 
 class BlobResetRequested implements LockIntent {}
+
 class BlobResetComplete implements LockIntent {}
+
 class RequestReveal implements LockIntent {}
+
 class RevealAuthSuccess implements LockIntent {}
+
 class AutoLock implements LockIntent {}
 
 class AddEntry implements LockIntent {

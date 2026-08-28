@@ -147,8 +147,12 @@ double _ksStatistic(List<double> a, List<double> b) {
   var maxD = 0.0;
   var i = 0, j = 0;
   for (final x in all) {
-    while (i < a.length && a[i] <= x) i++;
-    while (j < b.length && b[j] <= x) j++;
+    while (i < a.length && a[i] <= x) {
+      i++;
+    }
+    while (j < b.length && b[j] <= x) {
+      j++;
+    }
     final d = ((i / a.length) - (j / b.length)).abs();
     if (d > maxD) maxD = d;
   }

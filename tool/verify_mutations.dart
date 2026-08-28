@@ -17,7 +17,7 @@ void main() async {
       missing++;
       print('MISSING: ${m.id} [${m.group}] ${m.invariant}');
       print('  file: ${m.file}');
-      print('  search: ${m.search.length > 80 ? m.search.substring(0, 80) + '…' : m.search}');
+      print('  search: ${m.search.length > 80 ? '${m.search.substring(0, 80)}…' : m.search}');
       print('');
     }
   }

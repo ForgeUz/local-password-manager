@@ -10,8 +10,12 @@ class LookalikeDomain {
     final m = a.length;
     final n = b.length;
     final dp = List.generate(m + 1, (_) => List.filled(n + 1, 0));
-    for (var i = 0; i <= m; i++) dp[i][0] = i;
-    for (var j = 0; j <= n; j++) dp[0][j] = j;
+    for (var i = 0; i <= m; i++) {
+      dp[i][0] = i;
+    }
+    for (var j = 0; j <= n; j++) {
+      dp[0][j] = j;
+    }
     for (var i = 1; i <= m; i++) {
       for (var j = 1; j <= n; j++) {
         final cost = a[i - 1] == b[j - 1] ? 0 : 1;
@@ -29,8 +33,15 @@ class LookalikeDomain {
   // Canonical homoglyph mapping: both members of a look-alike pair map to the
   // SAME canonical char so normalization converges (0 and o -> 'o', etc.).
   static const Map<String, String> _homoglyphs = {
-    '0': 'o', 'o': 'o', '1': 'l', 'l': 'l', 'i': 'l',
-    '5': 's', 's': 's', 'v': 'w', 'w': 'w',
+    '0': 'o',
+    'o': 'o',
+    '1': 'l',
+    'l': 'l',
+    'i': 'l',
+    '5': 's',
+    's': 's',
+    'v': 'w',
+    'w': 'w',
   };
 
   // Normalize a domain by collapsing homoglyphs to a canonical form.

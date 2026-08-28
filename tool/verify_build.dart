@@ -9,7 +9,6 @@
 // Usage: dart run tool/verify_build.dart
 // Dependencies: dart:io, dart:convert.
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';

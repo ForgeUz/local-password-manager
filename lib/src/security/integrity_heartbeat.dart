@@ -45,8 +45,10 @@ class IntegrityHeartbeat {
   List<HeartbeatEntry> get log => List.unmodifiable(_log);
 
   // Append a session entry. prevHash = SHA256(previous entry canonical).
-  void append({required int t, required String version, required String binaryHash}) {
-    final prev = _log.isEmpty ? '' : _hex(Sha256.hash(_utf8(_log.last.canonical())));
+  void append(
+      {required int t, required String version, required String binaryHash}) {
+    final prev =
+        _log.isEmpty ? '' : _hex(Sha256.hash(_utf8(_log.last.canonical())));
     _log.add(HeartbeatEntry(
       t: t,
       version: version,
@@ -81,9 +83,11 @@ class IntegrityHeartbeat {
   void load(String json) {
     _log.clear();
     final list = jsonDecode(json) as List;
-    _log.addAll(list.map((e) => HeartbeatEntry.fromJson(e as Map<String, dynamic>)));
+    _log.addAll(
+        list.map((e) => HeartbeatEntry.fromJson(e as Map<String, dynamic>)));
   }
 
   static Uint8List _utf8(String s) => Uint8List.fromList(utf8.encode(s));
-  static String _hex(Uint8List b) => b.fold<String>('', (a, x) => a + x.toRadixString(16).padLeft(2, '0'));
+  static String _hex(Uint8List b) =>
+      b.fold<String>('', (a, x) => a + x.toRadixString(16).padLeft(2, '0'));
 }

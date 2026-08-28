@@ -56,8 +56,8 @@ class TotpConfig {
     this.digits = 6,
     this.periodSeconds = 30,
     this.algorithm = TotpAlgorithm.sha1,
-  }) : assert(digits == 6 || digits == 8, 'Digits must be 6 or 8'),
-       assert(periodSeconds > 0, 'Period must be positive');
+  })  : assert(digits == 6 || digits == 8, 'Digits must be 6 or 8'),
+        assert(periodSeconds > 0, 'Period must be positive');
 
   /// Display label for UI (e.g., "GitHub (user@example.com)").
   String get displayLabel => '$issuer ($accountName)';

@@ -20,13 +20,13 @@ import 'dart:io';
 const int _HASHBYTES = 32;
 
 typedef HkdfExtractNative = Int32 Function(
-  Pointer<Void>, Pointer<Void>, Int64, Pointer<Void>, Int64);
+    Pointer<Void>, Pointer<Void>, Int64, Pointer<Void>, Int64);
 typedef HkdfExtractDart = int Function(
-  Pointer<Void>, Pointer<Void>, int, Pointer<Void>, int);
+    Pointer<Void>, Pointer<Void>, int, Pointer<Void>, int);
 typedef HkdfExpandNative = Int32 Function(
-  Pointer<Void>, Int64, Pointer<Void>, Int64, Pointer<Void>);
+    Pointer<Void>, Int64, Pointer<Void>, Int64, Pointer<Void>);
 typedef HkdfExpandDart = int Function(
-  Pointer<Void>, int, Pointer<Void>, int, Pointer<Void>);
+    Pointer<Void>, int, Pointer<Void>, int, Pointer<Void>);
 typedef SodiumMemzeroNative = Void Function(Pointer<Void>, Int64);
 typedef SodiumMemzeroDart = void Function(Pointer<Void>, int);
 
@@ -42,7 +42,8 @@ class Hkdf {
 
   static bool _probe() {
     try {
-      final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
+      final lib = DynamicLibrary.open(
+          Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
       lib.lookupFunction<HkdfExtractNative, HkdfExtractDart>(
         'crypto_kdf_hkdf_sha256_extract',
       );
@@ -57,9 +58,10 @@ class Hkdf {
 
   /// HKDF-SHA256 derive. Uses native symbols when present; otherwise composes
   /// RFC 5869 over the audited HMAC-SHA256 primitive.
-  /// 
+  ///
   /// SECURITY: Caller must zero the returned Uint8List if sensitive.
-  static Uint8List derive(Uint8List ikm, Uint8List salt, String info, int outLen) {
+  static Uint8List derive(
+      Uint8List ikm, Uint8List salt, String info, int outLen) {
     if (isNativeAvailable) {
       return _deriveNative(ikm, salt, info, outLen);
     }
@@ -68,31 +70,33 @@ class Hkdf {
 
   /// RFC 5869 over HMAC-SHA256 (extract + expand).
   /// SECURITY: PRK is zeroed after use.
-  static Uint8List _deriveHmac(Uint8List ikm, Uint8List salt, String info, int outLen) {
+  static Uint8List _deriveHmac(
+      Uint8List ikm, Uint8List salt, String info, int outLen) {
     final prk = _extract(ikm, salt);
     final out = Uint8List(outLen);
     final infoBytes = Uint8List.fromList(info.codeUnits);
-    
+
     // RFC 5869 expand: T(0) = empty; T(i) = HMAC(PRK, T(i-1) || info || i).
     var t = Uint8List(0);
     var offset = 0;
     var block = 1;
-    
+
     while (offset < outLen) {
       final input = Uint8List(t.length + infoBytes.length + 1);
       input.setRange(0, t.length, t);
       input.setRange(t.length, t.length + infoBytes.length, infoBytes);
       input[t.length + infoBytes.length] = block;
       t = HmacSha256.compute(prk, input);
-      final take = (outLen - offset) < _HASHBYTES ? (outLen - offset) : _HASHBYTES;
+      final take =
+          (outLen - offset) < _HASHBYTES ? (outLen - offset) : _HASHBYTES;
       out.setRange(offset, offset + take, t.sublist(0, take));
       offset += take;
       block++;
     }
-    
+
     // CRITICAL: Zero PRK after use
     prk.fillRange(0, prk.length, 0);
-    
+
     return out;
   }
 
@@ -110,44 +114,49 @@ class Hkdf {
 
   /// Native HKDF path (used only when symbols are present).
   /// SECURITY: All native memory zeroed before freeing.
-  static Uint8List _deriveNative(Uint8List ikm, Uint8List salt, String info, int outLen) {
+  static Uint8List _deriveNative(
+      Uint8List ikm, Uint8List salt, String info, int outLen) {
     SodiumFfi.load().init();
-    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
+    final lib = DynamicLibrary.open(
+        Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final extract = lib.lookupFunction<HkdfExtractNative, HkdfExtractDart>(
       'crypto_kdf_hkdf_sha256_extract',
     );
     final expand = lib.lookupFunction<HkdfExpandNative, HkdfExpandDart>(
       'crypto_kdf_hkdf_sha256_expand',
     );
-    final memzero = lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>('sodium_memzero');
-    
+    final memzero = lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>(
+        'sodium_memzero');
+
     final prk = calloc.allocate<Uint8>(_HASHBYTES);
     final saltPtr = calloc.allocate<Uint8>(salt.length);
     final ikmPtr = calloc.allocate<Uint8>(ikm.length);
     final infoPtr = calloc.allocate<Uint8>(info.length);
     final okm = calloc.allocate<Uint8>(outLen);
-    
+
     try {
       saltPtr.asTypedList(salt.length).setAll(0, salt);
       ikmPtr.asTypedList(ikm.length).setAll(0, ikm);
-      infoPtr.asTypedList(info.length).setAll(0, Uint8List.fromList(info.codeUnits));
-      
+      infoPtr
+          .asTypedList(info.length)
+          .setAll(0, Uint8List.fromList(info.codeUnits));
+
       final rc1 = extract(prk.cast<Void>(), saltPtr.cast<Void>(), salt.length,
           ikmPtr.cast<Void>(), ikm.length);
       if (rc1 != 0) throw StateError('HKDF extract failed');
-      
+
       final rc2 = expand(okm.cast<Void>(), outLen, infoPtr.cast<Void>(),
           info.length, prk.cast<Void>());
       if (rc2 != 0) throw StateError('HKDF expand failed');
-      
+
       // CRITICAL: Copy result BEFORE zeroing
       final result = Uint8List.fromList(okm.asTypedList(outLen));
-      
+
       // CRITICAL: Zero ALL secrets before freeing
       memzero(prk.cast<Void>(), _HASHBYTES);
       memzero(ikmPtr.cast<Void>(), ikm.length);
       memzero(okm.cast<Void>(), outLen);
-      
+
       return result;
     } catch (e) {
       // On error, still zero memory

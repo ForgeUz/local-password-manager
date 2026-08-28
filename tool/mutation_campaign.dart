@@ -1385,7 +1385,7 @@ void main(List<String> args) async {
     final groupKilled = entry.value.where((m) => results[m] == 'killed').length;
     final groupSurvived = entry.value.where((m) => results[m] == 'SURVIVED').length;
     final groupSkipped = entry.value.where((m) => results[m] == 'SKIPPED').length;
-    print('  ${entry.key}: ${groupKilled}/${entry.value.length} killed'
+    print('  ${entry.key}: $groupKilled/${entry.value.length} killed'
         '${groupSurvived > 0 ? " ($groupSurvived SURVIVED)" : ""}'
         '${groupSkipped > 0 ? " ($groupSkipped skipped)" : ""}');
   }
@@ -1397,7 +1397,7 @@ void main(List<String> args) async {
     for (final m in survivors) {
       print('  ${m.id} [${m.group}] — ${m.invariant}');
       print('      file: ${m.file}');
-      print('      mutation: ${m.search.length > 60 ? m.search.substring(0, 60) + '…' : m.search}');
+      print('      mutation: ${m.search.length > 60 ? '${m.search.substring(0, 60)}…' : m.search}');
       print('');
     }
   }

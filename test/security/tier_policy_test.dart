@@ -13,7 +13,7 @@
 
 import 'package:test/test.dart';
 
-import '../../lib/src/security/security_tier.dart';
+import 'package:vault_crypto/src/security/security_tier.dart';
 
 void main() {
   group('TierPolicy.allowsAutoFill', () {

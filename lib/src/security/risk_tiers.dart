@@ -37,8 +37,18 @@ class RiskTiers {
   static int suggestTier(String domain) {
     final d = domain.toLowerCase();
     final sensitiveDomains = [
-      'bank', 'pay', 'wallet', 'capital', 'credit', 'invest',
-      'crypto', 'exchange', 'coin', 'registrar', 'dns', 'finance',
+      'bank',
+      'pay',
+      'wallet',
+      'capital',
+      'credit',
+      'invest',
+      'crypto',
+      'exchange',
+      'coin',
+      'registrar',
+      'dns',
+      'finance',
     ];
     for (final kw in sensitiveDomains) {
       if (d.contains(kw)) return sensitive;

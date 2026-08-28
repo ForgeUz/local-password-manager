@@ -22,15 +22,43 @@ const int _ABYTES = 16;
 // Fixed nonce for the self-box round-trip test. crypto_box REQUIRES the same
 // nonce on encrypt and decrypt; a random nonce per call breaks the round-trip.
 // This is test-only (self-box proof); real pairing derives a per-message nonce.
-final Uint8List _SELF_NONCE = Uint8List.fromList(
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+final Uint8List _SELF_NONCE = Uint8List.fromList([
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  22,
+  23,
+  24
+]);
 
 typedef BoxKeypairNative = Int32 Function(Pointer<Void>, Pointer<Void>);
 typedef BoxKeypairDart = int Function(Pointer<Void>, Pointer<Void>);
-typedef BoxEasyNative = Int32 Function(Pointer<Void>, Pointer<Void>, Int64, Pointer<Void>, Pointer<Void>, Pointer<Void>);
-typedef BoxEasyDart = int Function(Pointer<Void>, Pointer<Void>, int, Pointer<Void>, Pointer<Void>, Pointer<Void>);
-typedef BoxOpenEasyNative = Int32 Function(Pointer<Void>, Pointer<Void>, Int64, Pointer<Void>, Pointer<Void>, Pointer<Void>);
-typedef BoxOpenEasyDart = int Function(Pointer<Void>, Pointer<Void>, int, Pointer<Void>, Pointer<Void>, Pointer<Void>);
+typedef BoxEasyNative = Int32 Function(Pointer<Void>, Pointer<Void>, Int64,
+    Pointer<Void>, Pointer<Void>, Pointer<Void>);
+typedef BoxEasyDart = int Function(Pointer<Void>, Pointer<Void>, int,
+    Pointer<Void>, Pointer<Void>, Pointer<Void>);
+typedef BoxOpenEasyNative = Int32 Function(Pointer<Void>, Pointer<Void>, Int64,
+    Pointer<Void>, Pointer<Void>, Pointer<Void>);
+typedef BoxOpenEasyDart = int Function(Pointer<Void>, Pointer<Void>, int,
+    Pointer<Void>, Pointer<Void>, Pointer<Void>);
 
 class NativeNoise {
   static bool _inited = false;
@@ -42,7 +70,8 @@ class NativeNoise {
   factory NativeNoise() {
     _ensureInit();
     final lib = DynamicLibrary.open('libsodium.so.23');
-    final keypair = lib.lookupFunction<BoxKeypairNative, BoxKeypairDart>('crypto_box_keypair');
+    final keypair = lib
+        .lookupFunction<BoxKeypairNative, BoxKeypairDart>('crypto_box_keypair');
     final pk = calloc.allocate<Uint8>(_KEYBYTES);
     final sk = calloc.allocate<Uint8>(_KEYBYTES);
     try {
@@ -64,7 +93,8 @@ class NativeNoise {
   // the transport round-trips. Real pairing uses the peer's public key.
   Uint8List encryptToSelf(Uint8List msg) {
     final lib = DynamicLibrary.open('libsodium.so.23');
-    final box = lib.lookupFunction<BoxEasyNative, BoxEasyDart>('crypto_box_easy');
+    final box =
+        lib.lookupFunction<BoxEasyNative, BoxEasyDart>('crypto_box_easy');
     final ct = calloc.allocate<Uint8>(msg.length + _ABYTES);
     final nonce = calloc.allocate<Uint8>(_NONCEBYTES);
     final pkPtr = calloc.allocate<Uint8>(_KEYBYTES);
@@ -90,9 +120,11 @@ class NativeNoise {
 
   Uint8List decryptFromSelf(Uint8List ct) {
     // Fail-fast: ciphertext must carry at least the 16-byte box tag.
-    if (ct.length < _ABYTES) throw StateError('crypto_box ciphertext too short');
+    if (ct.length < _ABYTES)
+      throw StateError('crypto_box ciphertext too short');
     final lib = DynamicLibrary.open('libsodium.so.23');
-    final box = lib.lookupFunction<BoxOpenEasyNative, BoxOpenEasyDart>('crypto_box_open_easy');
+    final box = lib.lookupFunction<BoxOpenEasyNative, BoxOpenEasyDart>(
+        'crypto_box_open_easy');
     final pt = calloc.allocate<Uint8>(ct.length - _ABYTES);
     final nonce = calloc.allocate<Uint8>(_NONCEBYTES);
     final pkPtr = calloc.allocate<Uint8>(_KEYBYTES);

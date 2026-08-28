@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vault_crypto/src/app/app_store.dart';
@@ -13,13 +12,18 @@ class LockScreen extends StatefulWidget {
   final VaultService service;
   final Uint8List blob;
 
-  const LockScreen({super.key, required this.store, required this.service, required this.blob});
+  const LockScreen(
+      {super.key,
+      required this.store,
+      required this.service,
+      required this.blob});
 
   @override
   State<LockScreen> createState() => _LockScreenState();
 }
 
-class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateMixin {
+class _LockScreenState extends State<LockScreen>
+    with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   bool _isLoading = false;
   String _errorText = '';
@@ -76,7 +80,8 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
             content: const Text('Unlock failed'),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -100,24 +105,25 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
-
                 if (rooted) ...[
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: Colors.orange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+                        const Icon(Icons.warning_amber_rounded,
+                            color: Colors.orange, size: 24),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             'Rooted device detected. Security guarantees are weakened.',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 13,
                               height: 1.4,
                             ),
@@ -128,20 +134,22 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
                   ),
                   const SizedBox(height: 32),
                 ],
-
                 Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
-                      colors: [Colors.blueGrey.shade700, Colors.blueGrey.shade900],
+                      colors: [
+                        Colors.blueGrey.shade700,
+                        Colors.blueGrey.shade900
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blueGrey.withOpacity(0.3),
+                        color: Colors.blueGrey.withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -154,7 +162,6 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
                   ),
                 ),
                 const SizedBox(height: 32),
-
                 const Text(
                   'Welcome Back',
                   style: TextStyle(
@@ -170,30 +177,30 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
                   'Enter your master password to unlock',
                   style: TextStyle(
                     fontSize: 15,
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     height: 1.5,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
-
                 if (_errorText.isNotEmpty) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     margin: const EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                      border: Border.all(
+                          color: Colors.redAccent.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       _errorText,
-                      style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                      style: const TextStyle(
+                          color: Colors.redAccent, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
                   ),
                 ],
-
                 TextField(
                   controller: _controller,
                   obscureText: true,
@@ -206,7 +213,8 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
                   ],
                   decoration: InputDecoration(
                     labelText: 'Master Password',
-                    labelStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                    labelStyle:
+                        TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                     errorText: _errorText.isNotEmpty ? _errorText : null,
                     errorStyle: const TextStyle(color: Colors.redAccent),
                     filled: true,
@@ -217,24 +225,28 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.blueGrey, width: 2),
+                      borderSide:
+                          const BorderSide(color: Colors.blueGrey, width: 2),
                     ),
                     errorBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+                      borderSide:
+                          const BorderSide(color: Colors.redAccent, width: 2),
                     ),
-                    prefixIcon: Icon(Icons.lock_outline, color: Colors.white.withOpacity(0.5)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    prefixIcon: Icon(Icons.lock_outline,
+                        color: Colors.white.withValues(alpha: 0.5)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 18),
                   ),
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                   onSubmitted: (_) => _attemptUnlock(),
                 ),
                 const SizedBox(height: 32),
-
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: (isRateLimited || _isLoading) ? null : _attemptUnlock,
+                    onPressed:
+                        (isRateLimited || _isLoading) ? null : _attemptUnlock,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueGrey.shade700,
                       foregroundColor: Colors.white,
@@ -249,31 +261,33 @@ class _LockScreenState extends State<LockScreen> with SingleTickerProviderStateM
                             height: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Text(
                             'Unlock',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),
                 const SizedBox(height: 24),
-
                 Center(
                   child: TextButton(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => RecoverFromSharesScreen(service: widget.service),
+                          builder: (_) =>
+                              RecoverFromSharesScreen(service: widget.service),
                         ),
                       );
                     },
                     child: Text(
                       'Recover from Shares',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),

@@ -18,7 +18,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:vault_crypto/src/crypto/errors.dart';
-import 'package:vault_crypto/src/crypto/v4/constants.dart';
 import 'package:vault_crypto/src/crypto/v4/header.dart';
 
 void main(List<String> args) {

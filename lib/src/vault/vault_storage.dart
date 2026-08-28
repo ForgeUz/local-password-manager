@@ -13,7 +13,8 @@ class VaultStorage {
   Directory get baseDir => _baseDir;
 
   File get _file => File('${_baseDir.path}${Platform.pathSeparator}$_fileName');
-  File get _sfmFile => File('${_baseDir.path}${Platform.pathSeparator}$_sfmFileName');
+  File get _sfmFile =>
+      File('${_baseDir.path}${Platform.pathSeparator}$_sfmFileName');
 
   Future<bool> vaultExists() async {
     return _file.existsSync();
@@ -32,7 +33,8 @@ class VaultStorage {
   // over the target. A rename within one filesystem is atomic: an interrupted
   // change leaves the OLD file fully intact. No mixed state is observable.
   Future<void> writeBlobAtomic(Uint8List blob) async {
-    final tmp = File('${_baseDir.path}${Platform.pathSeparator}.vault.blob.tmp');
+    final tmp =
+        File('${_baseDir.path}${Platform.pathSeparator}.vault.blob.tmp');
     await tmp.writeAsBytes(blob, flush: true);
     await tmp.rename(_file.path);
   }
@@ -50,7 +52,8 @@ class VaultStorage {
   // v5 E2/V3.2: atomic SFM write (temp + rename) so an interrupted MP change
   // never leaves a half-written SFM file.
   Future<void> writeSfmAtomic(Uint8List sfm) async {
-    final tmp = File('${_baseDir.path}${Platform.pathSeparator}.second_factor.sfm.tmp');
+    final tmp =
+        File('${_baseDir.path}${Platform.pathSeparator}.second_factor.sfm.tmp');
     await tmp.writeAsBytes(sfm, flush: true);
     await tmp.rename(_sfmFile.path);
   }

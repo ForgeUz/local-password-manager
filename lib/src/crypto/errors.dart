@@ -8,9 +8,9 @@ import 'dart:typed_data';
 /// Supports an optional diagnostic message accessible via [message] or [toString].
 sealed class VaultCryptoError implements Exception {
   final String? message;
-  
+
   const VaultCryptoError([this.message]);
-  
+
   @override
   String toString() {
     final typeName = runtimeType.toString();

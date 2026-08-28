@@ -27,7 +27,8 @@ class GroupShred {
     required int deadlineEpochMillis,
   }) {
     return deviceIds
-        .map((id) => ShredOrder(deviceId: id, deadlineEpochMillis: deadlineEpochMillis))
+        .map((id) =>
+            ShredOrder(deviceId: id, deadlineEpochMillis: deadlineEpochMillis))
         .toList();
   }
 

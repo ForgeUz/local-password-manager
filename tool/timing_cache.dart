@@ -9,11 +9,9 @@
 // Usage: dart run tool/timing_cache.dart
 // Dependencies: aes_gcm.dart, argon2id.dart.
 
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:vault_crypto/src/crypto/native/aes_gcm.dart';
-import 'package:vault_crypto/src/crypto/native/argon2id.dart';
 
 Uint8List _bytes(int len, int seed) =>
     Uint8List.fromList(List.generate(len, (i) => (seed + i) & 0xFF));

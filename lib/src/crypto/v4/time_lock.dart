@@ -18,7 +18,8 @@ class TimeLock {
 
   static Uint8List computeChain(Uint8List seed, int iterations) {
     if (iterations > maxIterations) {
-      throw StateError('time-lock chain capped at $maxIterations iterations (v5 E11)');
+      throw StateError(
+          'time-lock chain capped at $maxIterations iterations (v5 E11)');
     }
     var current = seed;
     for (var i = 0; i < iterations; i++) {

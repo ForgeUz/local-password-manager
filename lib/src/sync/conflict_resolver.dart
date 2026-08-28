@@ -23,7 +23,8 @@ class ConflictOutcome {
 class ConflictResolver {
   final Directory _conflictsDir;
 
-  ConflictResolver({required Directory conflictsDir}) : _conflictsDir = conflictsDir {
+  ConflictResolver({required Directory conflictsDir})
+      : _conflictsDir = conflictsDir {
     if (!_conflictsDir.existsSync()) _conflictsDir.createSync(recursive: true);
   }
 
@@ -46,7 +47,8 @@ class ConflictResolver {
       case SyncFlag.conflict:
         // Archive the remote (losing-for-now) version for manual merge.
         final stamp = DateTime.now().millisecondsSinceEpoch;
-        final file = File('${_conflictsDir.path}${Platform.pathSeparator}conflict_${entryId}_$stamp.blob');
+        final file = File(
+            '${_conflictsDir.path}${Platform.pathSeparator}conflict_${entryId}_$stamp.blob');
         await file.writeAsBytes(remoteBytes, flush: true);
         return ConflictOutcome(
           archived: true,

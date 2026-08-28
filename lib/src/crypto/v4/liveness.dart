@@ -42,7 +42,8 @@ class Liveness {
     final tokenKey = deriveTokenKey(vrk);
     final payload = _payload(epoch, timestampMillis);
     final sig = HmacSha256.compute(tokenKey, payload);
-    return LivenessToken(epoch: epoch, timestampMillis: timestampMillis, signature: sig);
+    return LivenessToken(
+        epoch: epoch, timestampMillis: timestampMillis, signature: sig);
   }
 
   // Verify a token under the VRK. Returns the (epoch, timestamp) on success.
@@ -92,7 +93,8 @@ class Liveness {
   }
 
   static String _toHex(Uint8List b) {
-    return b.fold<String>('', (a, x) => a + x.toRadixString(16).padLeft(2, '0'));
+    return b.fold<String>(
+        '', (a, x) => a + x.toRadixString(16).padLeft(2, '0'));
   }
 
   static Uint8List _fromHex(String hex) {

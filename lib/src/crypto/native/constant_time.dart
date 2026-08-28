@@ -8,7 +8,8 @@ import 'dart:io';
 // Invariants: returns true iff equal; runtime independent of content.
 // Dependencies: libsodium.so.23, dart:ffi, dart:typed_data, package:ffi.
 
-typedef SodiumCompareNative = Int32 Function(Pointer<Void>, Pointer<Void>, Int64);
+typedef SodiumCompareNative = Int32 Function(
+    Pointer<Void>, Pointer<Void>, Int64);
 typedef SodiumCompareDart = int Function(Pointer<Void>, Pointer<Void>, int);
 
 class ConstantTime {
@@ -17,8 +18,10 @@ class ConstantTime {
   static bool equals(Uint8List a, Uint8List b) {
     if (a.length != b.length) return false;
     _ensureInit();
-    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
-    final sodiumCompare = lib.lookupFunction<SodiumCompareNative, SodiumCompareDart>(
+    final lib = DynamicLibrary.open(
+        Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
+    final sodiumCompare =
+        lib.lookupFunction<SodiumCompareNative, SodiumCompareDart>(
       'sodium_compare',
     );
     final pa = calloc.allocate<Uint8>(a.length);

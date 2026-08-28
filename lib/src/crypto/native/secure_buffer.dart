@@ -32,8 +32,10 @@ class SecureBuffer {
 
   static SecureBuffer alloc(int length) {
     _ensureInit();
-    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
-    final sodiumMalloc = lib.lookupFunction<SodiumMallocNative, SodiumMallocDart>(
+    final lib = DynamicLibrary.open(
+        Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
+    final sodiumMalloc =
+        lib.lookupFunction<SodiumMallocNative, SodiumMallocDart>(
       'sodium_malloc',
     );
     final ptr = sodiumMalloc(length);
@@ -82,8 +84,10 @@ class SecureBuffer {
 
   void dispose() {
     if (_isDisposed) return;
-    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
-    final sodiumMemzero = lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>(
+    final lib = DynamicLibrary.open(
+        Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
+    final sodiumMemzero =
+        lib.lookupFunction<SodiumMemzeroNative, SodiumMemzeroDart>(
       'sodium_memzero',
     );
     sodiumMemzero(_native, _backing.length);

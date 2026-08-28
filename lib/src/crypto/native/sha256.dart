@@ -18,7 +18,8 @@ class Sha256 {
 
   static Uint8List hash(Uint8List data) {
     _ensureInit();
-    final lib = DynamicLibrary.open(Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
+    final lib = DynamicLibrary.open(
+        Platform.isAndroid ? 'libsodium.so' : 'libsodium.so.23');
     final hash = lib.lookupFunction<HashNative, HashDart>('crypto_hash_sha256');
     final out = calloc.allocate<Uint8>(_BYTES);
     final dataPtr = calloc.allocate<Uint8>(data.length);

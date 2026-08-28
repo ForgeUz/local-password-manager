@@ -8,8 +8,10 @@ class AutoLockController {
   final Duration _timeout;
   Timer? _timer;
 
-  AutoLockController({required void Function(LockIntent) dispatch, required Duration timeout}) 
-      : _dispatch = dispatch, _timeout = timeout;
+  AutoLockController(
+      {required void Function(LockIntent) dispatch, required Duration timeout})
+      : _dispatch = dispatch,
+        _timeout = timeout;
 
   void start() {
     _cancel();

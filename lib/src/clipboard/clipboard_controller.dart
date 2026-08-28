@@ -11,7 +11,8 @@ class ClipboardController {
   ClipboardController({
     required ClipboardPlatform platform,
     Duration wipeDuration = const Duration(seconds: 30),
-  }) : _platform = platform, _wipeDuration = wipeDuration;
+  })  : _platform = platform,
+        _wipeDuration = wipeDuration;
 
   Future<void> copy(String text) async {
     await _platform.copy(text, sensitive: true);

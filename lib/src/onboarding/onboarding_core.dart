@@ -8,24 +8,35 @@ import 'dart:async';
 import '../crypto/native/secure_buffer.dart';
 
 sealed class OnboardingState {}
+
 class OnboardingWelcome implements OnboardingState {}
+
 class OnboardingDoctrine implements OnboardingState {}
+
 class OnboardingCreateMP implements OnboardingState {}
+
 class OnboardingDecoyOptIn implements OnboardingState {}
+
 class OnboardingDone implements OnboardingState {
   final bool createDecoy;
   OnboardingDone({required this.createDecoy});
 }
 
 sealed class OnboardingIntent {}
+
 class BeginOnboarding implements OnboardingIntent {}
+
 class AcceptDoctrine implements OnboardingIntent {}
+
 class SubmitMP implements OnboardingIntent {
   final SecureBuffer mp;
   SubmitMP(this.mp);
 }
+
 class SkipDecoy implements OnboardingIntent {}
+
 class CreateDecoy implements OnboardingIntent {}
+
 class GoBack implements OnboardingIntent {}
 
 OnboardingState _reduce(OnboardingState state, OnboardingIntent intent) {
@@ -34,9 +45,12 @@ OnboardingState _reduce(OnboardingState state, OnboardingIntent intent) {
     if (state is OnboardingCreateMP) return OnboardingDoctrine();
     if (state is OnboardingDecoyOptIn) return OnboardingCreateMP();
   }
-  if (state is OnboardingWelcome && intent is BeginOnboarding) return OnboardingDoctrine();
-  if (state is OnboardingDoctrine && intent is AcceptDoctrine) return OnboardingCreateMP();
-  if (state is OnboardingCreateMP && intent is SubmitMP) return OnboardingDecoyOptIn();
+  if (state is OnboardingWelcome && intent is BeginOnboarding)
+    return OnboardingDoctrine();
+  if (state is OnboardingDoctrine && intent is AcceptDoctrine)
+    return OnboardingCreateMP();
+  if (state is OnboardingCreateMP && intent is SubmitMP)
+    return OnboardingDecoyOptIn();
   if (state is OnboardingDecoyOptIn) {
     if (intent is SkipDecoy) return OnboardingDone(createDecoy: false);
     if (intent is CreateDecoy) return OnboardingDone(createDecoy: true);

@@ -17,10 +17,10 @@ class TrayController {
     required void Function() onActivate,
     required void Function() onLock,
     required void Function() onQuit,
-  }) : _platform = platform,
-       _onActivate = onActivate,
-       _onLock = onLock,
-       _onQuit = onQuit;
+  })  : _platform = platform,
+        _onActivate = onActivate,
+        _onLock = onLock,
+        _onQuit = onQuit;
 
   Future<void> init() async {
     await _platform.setup(

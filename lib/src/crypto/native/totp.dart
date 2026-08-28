@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'hmac_sha256.dart';
-import 'dart:io';
 
 // Intent: RFC 6238 TOTP generation (over HMAC-SHA256 with RFC 4226 dynamic
 // truncation, 30s step, 6 digits). Uses the available libsodium HMAC-SHA256
@@ -59,7 +58,8 @@ class Totp {
     final bd = ByteData.sublistView(msg);
     bd.setUint64(0, counter, Endian.big);
     // HMAC-SHA256 over the 8-byte big-endian counter.
-    final hmac = HmacSha256.compute(seed.length == 32 ? seed : _padKey(seed), msg);
+    final hmac =
+        HmacSha256.compute(seed.length == 32 ? seed : _padKey(seed), msg);
     // RFC 4226 dynamic truncation: offset = last nibble.
     final offset = hmac[hmac.length - 1] & 0x0f;
     final binCode = ((hmac[offset] & 0x7f) << 24) |
@@ -93,7 +93,8 @@ class Totp {
     // HMAC-SHA256 requires a 32-byte key; pad TOTP seeds (20-byte typical) with
     // zeros to 32 bytes.
     final out = Uint8List(32);
-    out.setRange(0, key.length < 32 ? key.length : 32, key.sublist(0, key.length < 32 ? key.length : 32));
+    out.setRange(0, key.length < 32 ? key.length : 32,
+        key.sublist(0, key.length < 32 ? key.length : 32));
     return out;
   }
 }

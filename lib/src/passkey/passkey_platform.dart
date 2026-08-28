@@ -23,8 +23,11 @@ class PasskeyPlatform {
   }) async {
     try {
       return await _channel.invokeMethod<String>('createPasskey', {
-        'rpId': rpId, 'rpName': rpName, 'userId': userId,
-        'userName': userName, 'challenge': challenge,
+        'rpId': rpId,
+        'rpName': rpName,
+        'userId': userId,
+        'userName': userName,
+        'challenge': challenge,
       });
     } on PlatformException {
       return null;
@@ -39,7 +42,8 @@ class PasskeyPlatform {
     required List<String> allowedCredentials,
   }) async {
     try {
-      final result = await _channel.invokeMethod<Map<dynamic, dynamic>>('getPasskey', {
+      final result =
+          await _channel.invokeMethod<Map<dynamic, dynamic>>('getPasskey', {
         'rpId': rpId,
         'challenge': challenge,
         'allowedCredentials': allowedCredentials,

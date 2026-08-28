@@ -31,7 +31,8 @@ class ObservationResult {
   final bool lockTriggered;
   final bool anomalous;
 
-  const ObservationResult({required this.lockTriggered, required this.anomalous});
+  const ObservationResult(
+      {required this.lockTriggered, required this.anomalous});
 }
 
 class BehavioralModel {

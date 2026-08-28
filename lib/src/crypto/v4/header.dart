@@ -13,7 +13,8 @@ class V4EntryRecord {
   final Uint8List id; // 16B UUID
   final int tier; // 1B: 0=Standard 1=Sensitive 2=Critical
   final Uint8List wrappedDek; // 2B len + variable
-  final List<Uint8List> searchTags; // prefix tags, each 32B (len 3..full domain)
+  final List<Uint8List>
+      searchTags; // prefix tags, each 32B (len 3..full domain)
   final Uint8List vectorClock; // variable
   final Uint8List ciphertext; // 4B len + variable (padded to size bucket)
 
@@ -29,8 +30,16 @@ class V4EntryRecord {
   Uint8List toBytes() {
     final vcLen = vectorClock.length;
     final tagBytes = searchTags.fold<int>(0, (a, t) => a + t.length);
-    final total = V4Constants.uuidSize + 1 + 2 + wrappedDek.length +
-        2 + tagBytes + 2 + vcLen + 4 + ciphertext.length;
+    final total = V4Constants.uuidSize +
+        1 +
+        2 +
+        wrappedDek.length +
+        2 +
+        tagBytes +
+        2 +
+        vcLen +
+        4 +
+        ciphertext.length;
     final out = Uint8List(total);
     final bd = out.buffer.asByteData();
     var off = 0;
@@ -61,7 +70,7 @@ class V4EntryRecord {
     // SECURITY: Bounds checking to prevent RangeError on malformed input.
     final bd = bytes.buffer.asByteData();
     var off = 0;
-    
+
     void checkBounds(int needed) {
       if (off + needed > bytes.length) {
         throw CorruptBlobError('Record extends beyond blob boundary');
@@ -71,23 +80,23 @@ class V4EntryRecord {
     checkBounds(V4Constants.uuidSize);
     final id = bytes.sublist(off, off + V4Constants.uuidSize);
     off += V4Constants.uuidSize;
-    
+
     checkBounds(1);
     final tier = bytes[off++];
-    
+
     checkBounds(2);
     final dekLen = bd.getUint16(off, Endian.big);
     off += 2;
-    
+
     if (dekLen > 1024) throw CorruptBlobError('DEK length unreasonably large');
     checkBounds(dekLen);
     final wrappedDek = bytes.sublist(off, off + dekLen);
     off += dekLen;
-    
+
     checkBounds(2);
     final tagCount = bd.getUint16(off, Endian.big);
     off += 2;
-    
+
     if (tagCount > 100) throw CorruptBlobError('Too many search tags');
     final searchTags = <Uint8List>[];
     for (var i = 0; i < tagCount; i++) {
@@ -95,24 +104,24 @@ class V4EntryRecord {
       searchTags.add(bytes.sublist(off, off + V4Constants.searchTagSize));
       off += V4Constants.searchTagSize;
     }
-    
+
     checkBounds(2);
     final vcLen = bd.getUint16(off, Endian.big);
     off += 2;
-    
+
     if (vcLen > 256) throw CorruptBlobError('Vector clock too large');
     checkBounds(vcLen);
     final vectorClock = bytes.sublist(off, off + vcLen);
     off += vcLen;
-    
+
     checkBounds(4);
     final ctLen = bd.getUint32(off, Endian.big);
     off += 4;
-    
+
     if (ctLen > 1024 * 1024) throw CorruptBlobError('Ciphertext too large');
     checkBounds(ctLen);
     final ciphertext = bytes.sublist(off, off + ctLen);
-    
+
     return V4EntryRecord(
       id: id,
       tier: tier,
@@ -222,12 +231,13 @@ class V4Header {
     final nonce = bytes.sublist(off, off + V4Constants.nonceSize);
     off += V4Constants.nonceSize;
     final vaultCount = bytes[off++];
-    
+
     // CRITICAL: Validate vaultCount matches spec (always 2)
     if (vaultCount != V4Constants.vaultCount) {
-      throw CorruptBlobError('Invalid vault count: expected ${V4Constants.vaultCount}, got $vaultCount');
+      throw CorruptBlobError(
+          'Invalid vault count: expected ${V4Constants.vaultCount}, got $vaultCount');
     }
-    
+
     final entries = <V4EntryRecord>[];
     try {
       // SECURITY: entry-count read is inside the guard so a truncated header
@@ -258,43 +268,50 @@ class V4Header {
   }
 
   static int _recordLength(V4EntryRecord rec) {
-    return V4Constants.uuidSize + 1 + 2 + rec.wrappedDek.length +
-        2 + rec.searchTags.length * V4Constants.searchTagSize +
-        2 + rec.vectorClock.length + 4 + rec.ciphertext.length;
+    return V4Constants.uuidSize +
+        1 +
+        2 +
+        rec.wrappedDek.length +
+        2 +
+        rec.searchTags.length * V4Constants.searchTagSize +
+        2 +
+        rec.vectorClock.length +
+        4 +
+        rec.ciphertext.length;
   }
 
   static V4EntryRecord _parseOneRecord(Uint8List bytes, int off) {
     final bd = bytes.buffer.asByteData();
     var p = off;
-    
+
     // SECURITY: Bounds checking helper
     void checkBounds(int needed) {
       if (p + needed > bytes.length) {
         throw CorruptBlobError('Record extends beyond blob boundary');
       }
     }
-    
+
     checkBounds(V4Constants.uuidSize);
     final id = bytes.sublist(p, p + V4Constants.uuidSize);
     p += V4Constants.uuidSize;
-    
+
     checkBounds(1);
     final tier = bytes[p++];
-    
+
     checkBounds(2);
     final dekLen = bd.getUint16(p, Endian.big);
     p += 2;
-    
+
     // SECURITY: Sanity check DEK length (wrapped DEK = nonce(12) + ct(32) + tag(16) = 60 bytes typical)
     if (dekLen > 1024) throw CorruptBlobError('DEK length unreasonably large');
     checkBounds(dekLen);
     final wrappedDek = bytes.sublist(p, p + dekLen);
     p += dekLen;
-    
+
     checkBounds(2);
     final tagCount = bd.getUint16(p, Endian.big);
     p += 2;
-    
+
     // SECURITY: Sanity check tag count
     if (tagCount > 100) throw CorruptBlobError('Too many search tags');
     final searchTags = <Uint8List>[];
@@ -303,26 +320,26 @@ class V4Header {
       searchTags.add(bytes.sublist(p, p + V4Constants.searchTagSize));
       p += V4Constants.searchTagSize;
     }
-    
+
     checkBounds(2);
     final vcLen = bd.getUint16(p, Endian.big);
     p += 2;
-    
+
     // SECURITY: Sanity check vector clock length
     if (vcLen > 256) throw CorruptBlobError('Vector clock too large');
     checkBounds(vcLen);
     final vectorClock = bytes.sublist(p, p + vcLen);
     p += vcLen;
-    
+
     checkBounds(4);
     final ctLen = bd.getUint32(p, Endian.big);
     p += 4;
-    
+
     // SECURITY: Sanity check ciphertext length (max 1MB per entry)
     if (ctLen > 1024 * 1024) throw CorruptBlobError('Ciphertext too large');
     checkBounds(ctLen);
     final ciphertext = bytes.sublist(p, p + ctLen);
-    
+
     return V4EntryRecord(
       id: id,
       tier: tier,

@@ -324,7 +324,7 @@ void main() {
     // Derive the MK from the MP (same KDF as createVault), split into shares.
     final blob = await VaultStorage(baseDir: tmp).readBlob();
     final header = V4Header.parse(blob);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       Uint8List.fromList('right'.codeUnits),
       header.salt,
       memory: V4Constants.kdfFloorMemory ~/ 1024,

@@ -36,10 +36,15 @@ class ShredPurge {
       }
     }
     if (!snapshotsDir.existsSync()) snapshotsDir.createSync(recursive: true);
-    final seed = File('${snapshotsDir.path}${Platform.pathSeparator}vault.v1.blob');
+    final seed =
+        File('${snapshotsDir.path}${Platform.pathSeparator}vault.v1.blob');
     await seed.writeAsBytes(postShredBlob, flush: true);
 
     // Restore list = only post-shred states.
-    return snapshotsDir.listSync().whereType<File>().map((f) => f.path).toList();
+    return snapshotsDir
+        .listSync()
+        .whereType<File>()
+        .map((f) => f.path)
+        .toList();
   }
 }

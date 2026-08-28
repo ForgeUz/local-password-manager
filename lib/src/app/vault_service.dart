@@ -26,7 +26,6 @@ import '../security/shamir_kit.dart';
 import '../security/security_dashboard.dart';
 import '../vault/vault_data.dart';
 import '../vault/vault_storage.dart';
-import '../passkey/passkey_core.dart';
 
 // Export result: CSV text plus an optional MP-strength warning (warn, not
 // block). The submitted MP must still derive the held VRK (fresh re-auth).
@@ -54,7 +53,7 @@ class VaultService implements Lockable {
   SecureBuffer? _vrk;
   List<V4VaultEntry> _entries = [];
   Map<String, List<Uint8List>> _searchTags = {};
-  Map<String, DateTime> _lastReveal = {};
+  final Map<String, DateTime> _lastReveal = {};
   bool _isDuress = false;
   bool _canaryTriggered = false;
   String? _lastImportExposureWarning;
@@ -64,14 +63,15 @@ class VaultService implements Lockable {
     required VaultCryptoV4 crypto,
     required VaultStorage storage,
     SnapshotManager? snapshots,
-  }) : _store = store,
-       _crypto = crypto,
-       _storage = storage,
-       _snapshots = snapshots ??
-           SnapshotManager(
-             storageDir: Directory('${storage.baseDir.path}${Platform.pathSeparator}snapshots'),
-             maxSnapshots: 5,
-           );
+  })  : _store = store,
+        _crypto = crypto,
+        _storage = storage,
+        _snapshots = snapshots ??
+            SnapshotManager(
+              storageDir: Directory(
+                  '${storage.baseDir.path}${Platform.pathSeparator}snapshots'),
+              maxSnapshots: 5,
+            );
 
   bool get isUnlocked => _store.currentState is Unlocked;
   bool get hasVrk => _vrk != null;
@@ -93,17 +93,17 @@ class VaultService implements Lockable {
     if (!await _storage.vaultExists()) {
       _store.dispatch(VaultMissing());
       return;
+    }
+    _currentBlob = await _storage.readBlob();
+    // Startup integrity gate: a vault.blob that is not a valid GEN4 header is
+    // either corrupted or a leftover from an old build. Route to the
+    // "corrupted/unreadable" screen instead of silently locking the user out.
+    if (_isValidV4Blob(_currentBlob!)) {
+      _store.dispatch(VaultLoaded(blob: _currentBlob!));
+    } else {
+      _store.dispatch(BlobCorruptDetected(blob: _currentBlob!));
+    }
   }
-  _currentBlob = await _storage.readBlob();
-  // Startup integrity gate: a vault.blob that is not a valid GEN4 header is
-  // either corrupted or a leftover from an old build. Route to the
-  // "corrupted/unreadable" screen instead of silently locking the user out.
-  if (_isValidV4Blob(_currentBlob!)) {
-    _store.dispatch(VaultLoaded(blob: _currentBlob!));
-  } else {
-    _store.dispatch(BlobCorruptDetected(blob: _currentBlob!));
-  }
-}
 
   // v5: byte-level GEN4 validation — magic + version + min length. A blob that
   // fails here could be trash, an old V3 file, or truncated (header parse would
@@ -135,7 +135,8 @@ class VaultService implements Lockable {
     // the UI; any access triggers the alarm (lock + lockdown).
     _entries = _generateCanaries();
     final json = Uint8List.fromList(
-      jsonEncode({'entries': _entries.map((e) => e.toJson()).toList()}).codeUnits,
+      jsonEncode({'entries': _entries.map((e) => e.toJson()).toList()})
+          .codeUnits,
     );
     _currentBlob = await _crypto.lockVault(json, mp);
     _blobSalt = V4Header.parse(_currentBlob!).salt;
@@ -146,7 +147,7 @@ class VaultService implements Lockable {
     // Hold the VRK so the user can add entries immediately after creation
     // (state-loss fix: addEntry silently returned when _vrk was null).
     final header = V4Header.parse(_currentBlob!);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       mp.readBytes(),
       header.salt,
       memory: header.kdfMemory,
@@ -157,7 +158,8 @@ class VaultService implements Lockable {
     _vrk = SecureBuffer.fromList(KeyHierarchy.deriveVrk(mk));
     _isDuress = false;
 
-    _store.dispatch(VaultCreated(vaultData: VaultData(entries: []), blob: _currentBlob!));
+    _store.dispatch(
+        VaultCreated(vaultData: VaultData(entries: []), blob: _currentBlob!));
   }
 
   // Biometric fast path (Phase D.1): unlock using a VRK retrieved from the
@@ -211,6 +213,7 @@ class VaultService implements Lockable {
     }
   }
 
+  @override
   Future<void> lock() async {
     if (_vrk != null) {
       SecretWiper.wipe(_vrk!);
@@ -232,9 +235,10 @@ class VaultService implements Lockable {
       tier: tier ?? RiskTiers.suggestTier(entry.url),
     );
     _entries.add(v4);
-    _searchTags[v4.id] = SearchTag.computePrefixes(_vrk!.readBytes(), v4.domain);
-    _currentBlob = await _crypto.relock(_vrk!.readBytes(), _entries,
-        salt: _blobSalt);
+    _searchTags[v4.id] =
+        SearchTag.computePrefixes(_vrk!.readBytes(), v4.domain);
+    _currentBlob =
+        await _crypto.relock(_vrk!.readBytes(), _entries, salt: _blobSalt);
     await _storage.writeBlob(_currentBlob!);
     await _snapshots.saveSnapshot(_currentBlob!);
     _store.dispatch(AddEntry(entry: entry));
@@ -292,13 +296,14 @@ class VaultService implements Lockable {
     final idx = _entries.indexWhere((e) => e.id == id);
     if (idx < 0) return false;
     final tier = _entries[idx].tier;
-    if (tier == RiskTiers.standard) return false; // Standard never needs re-auth
+    if (tier == RiskTiers.standard)
+      return false; // Standard never needs re-auth
     // Fresh re-auth proof: derive VRK from the submitted MP using the original
     // vault salt (deterministic -> matches the held VRK), constant-time compare.
     final salt = _blobSalt;
     if (salt == null) return false;
     try {
-      final mk = await Argon2id.derive(
+      final mk = Argon2id.derive(
         mp.readBytes(),
         salt,
         memory: V4Constants.kdfFloorMemory ~/ 1024,
@@ -374,7 +379,8 @@ class VaultService implements Lockable {
     final idx = _entries.indexWhere((e) => e.id == entryId);
     if (idx < 0) return;
     _entries[idx].passkeyCredentialId = credentialId;
-    _currentBlob = await _crypto.relock(_vrk!.readBytes(), _entries, salt: _blobSalt);
+    _currentBlob =
+        await _crypto.relock(_vrk!.readBytes(), _entries, salt: _blobSalt);
     await _storage.writeBlob(_currentBlob!);
     await _snapshots.saveSnapshot(_currentBlob!);
   }
@@ -387,7 +393,6 @@ class VaultService implements Lockable {
   }
 
   static bool _constTimeEq(Uint8List a, Uint8List b) {
-
     if (a.length != b.length) return false;
     var diff = 0;
     for (var i = 0; i < a.length; i++) {
@@ -398,13 +403,16 @@ class VaultService implements Lockable {
 
   // Local Security Dashboard (Phase K.1): dup/weak/old warnings, fully local.
   List<DashboardWarning> dashboardWarnings() {
-    final records = _entries.where((e) => !e.isCanary).map((e) => (
-      id: e.id,
-      title: e.title,
-      password: e.password,
-      updatedAt: e.updatedAt,
-      domain: e.domain,
-    )).toList();
+    final records = _entries
+        .where((e) => !e.isCanary)
+        .map((e) => (
+              id: e.id,
+              title: e.title,
+              password: e.password,
+              updatedAt: e.updatedAt,
+              domain: e.domain,
+            ))
+        .toList();
     return SecurityDashboard.analyze(
       entries: records,
       now: DateTime.now().millisecondsSinceEpoch,
@@ -451,7 +459,7 @@ class VaultService implements Lockable {
     if (_vrk == null) throw StateError('Vault locked');
     final salt = _blobSalt;
     if (salt == null) throw StateError('Vault salt missing');
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       mp.readBytes(),
       salt,
       memory: V4Constants.kdfFloorMemory ~/ 1024,
@@ -463,8 +471,10 @@ class VaultService implements Lockable {
       throw DecryptionFailedError();
     }
 
-    final rows = _entries.where((e) => !e.isCanary).map((e) =>
-        '"${e.title}","${e.username}","${e.password}","${e.url}"').toList();
+    final rows = _entries
+        .where((e) => !e.isCanary)
+        .map((e) => '"${e.title}","${e.username}","${e.password}","${e.url}"')
+        .toList();
     final csv = 'title,username,password,url\n${rows.join('\n')}';
 
     final strength = MpStrength.check(utf8.decode(mp.readBytes()));
@@ -489,11 +499,12 @@ class VaultService implements Lockable {
     final header = V4Header.parse(blob);
     final salt = header.salt;
     final decoyJson = Uint8List.fromList(
-      jsonEncode({'entries': entries.map((e) => e.toJson()).toList()}).codeUnits,
+      jsonEncode({'entries': entries.map((e) => e.toJson()).toList()})
+          .codeUnits,
     );
     final decoy = await _crypto.lockDecoy(decoyJson, duressMp, salt);
     // Re-lock the primary vault with the decoy embedded in slot 2.
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       primaryMp.readBytes(),
       salt,
       memory: header.kdfMemory,
@@ -522,7 +533,7 @@ class VaultService implements Lockable {
     final blob = _currentBlob;
     if (blob == null) throw StateError('No vault loaded');
     final header = V4Header.parse(blob);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       mp.readBytes(),
       header.salt,
       memory: V4Constants.kdfFloorMemory ~/ 1024,
@@ -583,10 +594,12 @@ class VaultService implements Lockable {
   // MK_base (seed untouched — 2FA survives), and persists BOTH files via
   // temp-file-then-rename. An interrupted change leaves the old file + old MP
   // fully intact. No mixed tag/VRK state is observable.
-  Future<void> changeMasterPassword(SecureBuffer oldMp, SecureBuffer newMp) async {
+  Future<void> changeMasterPassword(
+      SecureBuffer oldMp, SecureBuffer newMp) async {
     final blob = _currentBlob;
     if (blob == null) throw StateError('No vault loaded');
-    final sfmFile = await _storage.sfmExists() ? await _storage.readSfm() : null;
+    final sfmFile =
+        await _storage.sfmExists() ? await _storage.readSfm() : null;
     final result = await _crypto.changeMasterPassword(blob, oldMp, newMp,
         sfmFile: sfmFile);
     // Atomic persistence: vault blob first, then SFM file. Each is a
@@ -601,7 +614,7 @@ class VaultService implements Lockable {
     _blobSalt = V4Header.parse(result.blob).salt;
     // Re-derive the held VRK under the new MP so the session stays unlocked.
     final header = V4Header.parse(result.blob);
-    final mk = await Argon2id.derive(
+    final mk = Argon2id.derive(
       newMp.readBytes(),
       header.salt,
       memory: header.kdfMemory,
@@ -670,13 +683,16 @@ class VaultService implements Lockable {
   // UI-facing entry list excludes canaries (they are invisible to the user).
   static VaultData _toVaultData(List<V4VaultEntry> entries) {
     return VaultData(
-      entries: entries.where((e) => !e.isCanary).map((e) => VaultEntry(
-        id: e.id,
-        title: e.title,
-        username: e.username,
-        password: e.password,
-        url: e.url,
-      )).toList(),
+      entries: entries
+          .where((e) => !e.isCanary)
+          .map((e) => VaultEntry(
+                id: e.id,
+                title: e.title,
+                username: e.username,
+                password: e.password,
+                url: e.url,
+              ))
+          .toList(),
     );
   }
 }

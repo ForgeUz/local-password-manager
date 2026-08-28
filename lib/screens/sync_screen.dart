@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +19,8 @@ class SyncScreen extends StatefulWidget {
 }
 
 class _SyncScreenState extends State<SyncScreen> {
-  static const _method = MethodChannel('com.example.vault_crypto/ble_transport');
+  static const _method =
+      MethodChannel('com.example.vault_crypto/ble_transport');
   static const _peers = EventChannel('com.example.vault_crypto/ble_peers');
   static const _data = EventChannel('com.example.vault_crypto/ble_data');
 
@@ -50,7 +50,8 @@ class _SyncScreenState extends State<SyncScreen> {
       final map = Map<String, dynamic>.from(event as Map);
       final id = map['peerId'] as String;
       if (map['type'] == 'found') {
-        _store.dispatch(PeerDiscovered(id, (map['deviceName'] ?? 'peer') as String));
+        _store.dispatch(
+            PeerDiscovered(id, (map['deviceName'] ?? 'peer') as String));
       } else if (map['type'] == 'lost') {
         _store.dispatch(PeerLost(id));
       }
@@ -70,7 +71,8 @@ class _SyncScreenState extends State<SyncScreen> {
 
   Future<void> _host() async {
     try {
-      await _method.invokeMethod('startAdvertising', {'deviceName': 'Vault Host'});
+      await _method
+          .invokeMethod('startAdvertising', {'deviceName': 'Vault Host'});
       _store.dispatch(HostPressed());
     } catch (e) {
       _store.dispatch(ErrorOccurred('Advertise failed: $e'));
@@ -112,9 +114,15 @@ class _SyncScreenState extends State<SyncScreen> {
   }
 
   Future<void> _reset() async {
-    try { await _method.invokeMethod('stopScanning'); } catch (_) {}
-    try { await _method.invokeMethod('stopAdvertising'); } catch (_) {}
-    try { await _method.invokeMethod('disconnect'); } catch (_) {}
+    try {
+      await _method.invokeMethod('stopScanning');
+    } catch (_) {}
+    try {
+      await _method.invokeMethod('stopAdvertising');
+    } catch (_) {}
+    try {
+      await _method.invokeMethod('disconnect');
+    } catch (_) {}
     _store.dispatch(ResetPressed());
   }
 
@@ -124,7 +132,7 @@ class _SyncScreenState extends State<SyncScreen> {
     await File(path).writeAsBytes(bytes, flush: true);
 
     final mpController = TextEditingController();
-    
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -132,11 +140,16 @@ class _SyncScreenState extends State<SyncScreen> {
         content: TextField(
           controller: mpController,
           obscureText: true,
-          decoration: const InputDecoration(hintText: 'Enter master password to decrypt vault'),
+          decoration: const InputDecoration(
+              hintText: 'Enter master password to decrypt vault'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Verify')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Verify')),
         ],
       ),
     );
@@ -199,15 +212,14 @@ class _SyncScreenState extends State<SyncScreen> {
         ),
       );
     }
-    
+
     return StreamBuilder<SyncState>(
-      stream: _store.stateStream,
-      initialData: _store.currentState,
-      builder: (context, snapshot) {
-        final state = snapshot.data ?? SyncIdle();
-        return _buildBody(context, state);
-      }
-    );
+        stream: _store.stateStream,
+        initialData: _store.currentState,
+        builder: (context, snapshot) {
+          final state = snapshot.data ?? SyncIdle();
+          return _buildBody(context, state);
+        });
   }
 
   Widget _buildBody(BuildContext context, SyncState state) {
@@ -241,7 +253,8 @@ class _SyncScreenState extends State<SyncScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Status: ${_statusText(state)}', style: const TextStyle(fontSize: 14)),
+          Text('Status: ${_statusText(state)}',
+              style: const TextStyle(fontSize: 14)),
           const SizedBox(height: 24),
           _buildPeers(state),
         ],
@@ -282,7 +295,8 @@ class _SyncScreenState extends State<SyncScreen> {
     if (state is! SyncScanning) {
       return const Padding(
         padding: EdgeInsets.all(8),
-        child: Text('No peers yet. Press "Join" on this device and "Host" on the other.'),
+        child: Text(
+            'No peers yet. Press "Join" on this device and "Host" on the other.'),
       );
     }
     if (state.peers.isEmpty) {
@@ -315,7 +329,8 @@ class _SyncScreenState extends State<SyncScreen> {
     if (state is SyncConnected) return 'Connected to peer';
     if (state is SyncTransferring) return state.message;
     if (state is SyncVerify) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _onBlobReceived(state.bytes));
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _onBlobReceived(state.bytes));
       return 'Received ${state.bytes.length} bytes, verifying...';
     }
     if (state is SyncError) return 'Error: ${state.message}';

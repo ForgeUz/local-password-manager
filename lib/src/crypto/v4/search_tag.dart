@@ -33,7 +33,8 @@ class SearchTag {
   /// Compute tag for an arbitrary input string under the given SearchKey.
   static Uint8List tagFor(Uint8List searchKey, String input) {
     final normalized = _normalize(input);
-    return HmacSha256.compute(searchKey, Uint8List.fromList(utf8.encode(normalized)));
+    return HmacSha256.compute(
+        searchKey, Uint8List.fromList(utf8.encode(normalized)));
   }
 
   /// Compute tag for a domain under a derived SearchKey.
@@ -56,12 +57,13 @@ class SearchTag {
     try {
       final normalized = _normalize(domain);
       final tags = <Uint8List>[];
-      
+
       for (var len = 3; len <= normalized.length; len++) {
         final prefix = normalized.substring(0, len);
-        tags.add(HmacSha256.compute(searchKey, Uint8List.fromList(utf8.encode(prefix))));
+        tags.add(HmacSha256.compute(
+            searchKey, Uint8List.fromList(utf8.encode(prefix))));
       }
-      
+
       // Pad to the next bucket with random tags (false-positive candidates,
       // filtered at reveal time by decrypting the matched entry).
       final bucket = _bucketFor(tags.length);
@@ -90,24 +92,26 @@ class SearchTag {
   /// TODO: Add Punycode conversion for IDN domains (münchen.de -> xn--mnchen-3ya.de)
   static String _normalize(String domain) {
     var d = domain.toLowerCase().trim();
-    
+
     // Strip scheme
-    if (d.startsWith('https://')) d = d.substring(8);
-    else if (d.startsWith('http://')) d = d.substring(7);
+    if (d.startsWith('https://')) {
+      d = d.substring(8);
+    } else if (d.startsWith('http://'))
+      d = d.substring(7);
     else if (d.startsWith('ftp://')) d = d.substring(6);
-    
+
     // Strip www.
     if (d.startsWith('www.')) d = d.substring(4);
-    
+
     // Strip trailing slash and path
     final slashIndex = d.indexOf('/');
     if (slashIndex != -1) d = d.substring(0, slashIndex);
-    
+
     // Strip trailing dots (FQDN notation)
     while (d.endsWith('.')) {
       d = d.substring(0, d.length - 1);
     }
-    
+
     return d;
   }
 
@@ -118,10 +122,10 @@ class SearchTag {
   static bool matchesDomain(String domain, String query) {
     final d = _normalize(domain);
     final q = query.toLowerCase().trim();
-    
+
     // SECURITY: Reject queries shorter than 3 chars to prevent excessive false positives
     if (q.length < 3) return false;
-    
+
     return d.startsWith(q);
   }
 }

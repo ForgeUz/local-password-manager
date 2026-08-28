@@ -1,5 +1,4 @@
 import 'dart:ffi';
-import 'dart:io';
 
 // Intent: PQ-hybrid availability gate (v5 E9). The PQ badge appears ONLY when
 // ML-KEM-768 (PQClean/liboqs) is present AND its round-trip self-test passes.

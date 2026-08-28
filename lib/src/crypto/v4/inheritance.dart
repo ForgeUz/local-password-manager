@@ -34,13 +34,15 @@ class Inheritance {
   static const int _nonceSize = 12;
 
   // Setup: split the bundle secret into N shares (any K reconstruct it).
-  static InheritanceSetup setup(Uint8List bundleSecret, {required int n, required int k}) {
+  static InheritanceSetup setup(Uint8List bundleSecret,
+      {required int n, required int k}) {
     return InheritanceSetup(shares: ShamirKit.split(bundleSecret, n: n, k: k));
   }
 
   // Encrypt designated inheritance entries under the bundle secret.
   // Each entry -> nonce(12) || AES-GCM(bundleSecret, entryBytes).
-  static List<Uint8List> encryptEntries(List<Uint8List> entries, Uint8List bundleSecret) {
+  static List<Uint8List> encryptEntries(
+      List<Uint8List> entries, Uint8List bundleSecret) {
     return entries.map((e) {
       final nonce = _randomNonce();
       final ct = AesGcm.encrypt(bundleSecret, nonce, Uint8List(0), e);
@@ -54,7 +56,8 @@ class Inheritance {
   // Decrypt an inheritance entry under the unwrapped bundle secret. A wrong key
   // (old shares after revocation) -> GCM tag mismatch -> InheritanceActivationError.
   static Uint8List decryptEntry(Uint8List wrapped, Uint8List bundleSecret) {
-    if (wrapped.length < _nonceSize + 16) throw InheritanceActivationError('bad entry');
+    if (wrapped.length < _nonceSize + 16)
+      throw InheritanceActivationError('bad entry');
     final nonce = wrapped.sublist(0, _nonceSize);
     try {
       final ct = wrapped.sublist(_nonceSize);
@@ -75,7 +78,8 @@ class Inheritance {
     required int graceMs,
     required int frictionIterations,
   }) {
-    if (shares.length < k) throw InheritanceActivationError('fewer than K shares');
+    if (shares.length < k)
+      throw InheritanceActivationError('fewer than K shares');
     // Verify the token signature + epoch (forged/newer rejected).
     final (_, ts) = Liveness.verify(vrk, token, token.epoch);
     // Staleness: token must be OLDER than check-in + grace.
@@ -100,7 +104,8 @@ class Inheritance {
   }) {
     final newShares = ShamirKit.split(freshBundleSecret, n: n, k: k);
     final newWrapped = encryptEntries(entryBytes, freshBundleSecret);
-    return InheritanceRevokeResult(newShares: newShares, newWrappedEntries: newWrapped);
+    return InheritanceRevokeResult(
+        newShares: newShares, newWrappedEntries: newWrapped);
   }
 
   static Uint8List _randomNonce() {

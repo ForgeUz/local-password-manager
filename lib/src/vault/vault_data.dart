@@ -8,7 +8,8 @@ class VaultEntry {
   String username;
   String password;
   String url;
-  String? passkeyCredentialId; // Opaque FIDO2 handle (public data, key lives in hardware)
+  String?
+      passkeyCredentialId; // Opaque FIDO2 handle (public data, key lives in hardware)
 
   VaultEntry({
     required this.id,

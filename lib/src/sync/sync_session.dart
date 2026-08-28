@@ -60,7 +60,10 @@ class PairedDevice {
   final String deviceId;
   final String staticKey;
   final DateTime lastSynced;
-  PairedDevice({required this.deviceId, required this.staticKey, required this.lastSynced});
+  PairedDevice(
+      {required this.deviceId,
+      required this.staticKey,
+      required this.lastSynced});
 
   bool isStale({int staleMonths = 6, DateTime? now}) {
     final nowT = now ?? DateTime.now();
@@ -74,10 +77,11 @@ class DeviceRegistry {
   List<PairedDevice> get devices => List.unmodifiable(_devices);
 
   void add(PairedDevice d) => _devices.add(d);
-  void revoke(String deviceId) => _devices.removeWhere((d) => d.deviceId == deviceId);
+  void revoke(String deviceId) =>
+      _devices.removeWhere((d) => d.deviceId == deviceId);
   List<PairedDevice> stale({DateTime Function()? now}) {
-      final nowT = now ?? DateTime.now;
-      return _devices.where((d) => d.isStale(now: nowT())).toList();
+    final nowT = now ?? DateTime.now;
+    return _devices.where((d) => d.isStale(now: nowT())).toList();
   }
 }
 

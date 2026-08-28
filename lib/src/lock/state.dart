@@ -38,9 +38,9 @@ class Unlocked implements LockState {
   final Uint8List blob; // ADDED: Keep blob for re-locking
 
   Unlocked({
-    this.failCount = 0, 
+    this.failCount = 0,
     required this.vaultData,
-    this.revealAuthed = false, 
+    this.revealAuthed = false,
     this.revealAuthTime,
     required this.blob, // ADDED
   });
