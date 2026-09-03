@@ -1,4 +1,6 @@
 // Intent: Heuristic check for Master Password strength. Warn-only.
+import 'dart:typed_data';
+
 class MpStrengthResult {
   final MpStrengthLevel strength;
   final String warning;
@@ -10,10 +12,29 @@ enum MpStrengthLevel { weak, fair, strong }
 
 class MpStrength {
   static MpStrengthResult check(String mp) {
-    bool hasUpper = mp.contains(RegExp(r'[A-Z]'));
-    bool hasLower = mp.contains(RegExp(r'[a-z]'));
-    bool hasDigit = mp.contains(RegExp(r'[0-9]'));
-    bool hasSymbol = mp.contains(RegExp(r'[^a-zA-Z0-9]'));
+    return checkBytes(Uint8List.fromList(mp.codeUnits));
+  }
+
+  // P0: strength check on the raw bytes so callers never materialize the master
+  // password as an immutable Dart String (GC-nondeterministic, scraped by
+  // infostealers). Enforced by test/app/vault_service_test.dart
+  // 'exportCsv does not materialize the MP as a String'.
+  static MpStrengthResult checkBytes(Uint8List mp) {
+    bool hasUpper = false;
+    bool hasLower = false;
+    bool hasDigit = false;
+    bool hasSymbol = false;
+    for (final c in mp) {
+      if (c >= 0x41 && c <= 0x5A) {
+        hasUpper = true;
+      } else if (c >= 0x61 && c <= 0x7A) {
+        hasLower = true;
+      } else if (c >= 0x30 && c <= 0x39) {
+        hasDigit = true;
+      } else {
+        hasSymbol = true;
+      }
+    }
 
     int classCount =
         [hasUpper, hasLower, hasDigit, hasSymbol].where((c) => c).length;

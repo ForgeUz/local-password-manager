@@ -11,7 +11,7 @@ Status legend: DONE / PARTIAL / NOT STARTED / NEXT
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 570 (all passing) |
+| Total tests | 584 (all passing) |
 | Mutation kill score | 100% (137/137: 100 TCB + 20 V6.5 + 3 vault_data + 3 passkey + 3 onboarding + 4 shamir + 4 adaptive_posture) |
 | Security gate suites | security.md (1-20) + security2.md (21-32) — DONE |
 | Fuzzing | 8 fuzzers, 0 crashes, 0 timeouts |
@@ -20,6 +20,8 @@ Status legend: DONE / PARTIAL / NOT STARTED / NEXT
 | External audit | NOT STARTED (pending) |
 | Linux build | DONE (Hermetic, byte-identical, Wayland shortcuts) |
 | Android build | DONE (Binder transit closed, CredentialManager passkeys) |
+| Security roadmap | Phases 0-3 DONE (see §12) |
+| Direct dependencies | 13 (allowlist-gated; pointycastle removed) |
 
 > **Full test/mutation/fuzzer registry:** See [`TESTING.md`](TESTING.md).
 
@@ -342,4 +344,59 @@ V6.5 additions:
 
 ---
 
-**Bottom line:** Crypto core and V6.5 features mathematically verified (137/137 mutation kill). Full suite is 570 tests, all passing. Security gate suites complete. Eight fuzzers, 0 crashes/timeouts. Linux (Hermetic/Wayland) and Android (Binder-closed/Passkeys) builds verified. V6.5.3 remediated a live mutation-window bug and fixed the KDF floor (64 MiB was silently reduced to 64 KiB). Remaining blocker: external audit. See [`TESTING.md`](TESTING.md) for the full verification registry.
+## 12. Security Roadmap Execution (Phases 0-3)
+
+Executed against the threat-informed roadmap. All four P0 gaps closed; the two
+attack families that reach this app (infostealers, AI-driven coercion) are now
+defended.
+
+### Phase 0 — P0 fixes (DONE)
+- **Duress write-guard**: all five mutators throw `StateError` in a duress
+  session (a write under VRK_duress would brick the primary vault).
+- **Service-layer key zeroization (CWE-226)**: MK/VRK zeroed at all 7
+  derivation sites; `exportCsv` uses `MpStrength.checkBytes` (no MP String).
+- **`debugVrk` release guard**: const `bool.fromEnvironment` throw (dead-code
+  eliminated in release).
+- **`unlock()` mutex + `lock()` full-wipe**: no race on state swap; lock clears
+  `_searchTags`/`_lastReveal`/`_isDuress`.
+- **P1**: `_searchTags` populated on VRK/shares unlock; canary wipe synchronous.
+- **Regression tests**: `test/app/vault_service_p0_test.dart` (7 tests).
+
+### Phase 1 — Threat hardening (DONE)
+- `memory_dump` extended with service-layer zeroization check.
+- `ProcessHardening.harden()` runs before first `SecureBuffer.alloc`.
+- Keystore `setIsStrongBoxBacked(true)` (best-effort).
+- Clipboard 30s auto-wipe + `EXTRA_IS_SENSITIVE` + `FLAG_SECURE` verified.
+- `verify_deps` is an allowlist gate; gitleaks CI job added.
+
+### Phase 2 — Hygiene (DONE)
+- Comment-traceability tool (`tool/verify_comment_traceability.dart`).
+- Coverage matrix (`SECURITY_COVERAGE_MATRIX.md`).
+- Mutation campaign verified (temp-copy + ≥90% floor).
+- **God-class split**: `CanaryService`, `CsvService`, `RecoveryService`,
+  `DecoyService` extracted; `VaultService` delegates.
+
+### Phase 3 — Backlog (DONE except device/post-ship)
+- **KDF calibration at creation**: `createVault` accepts raised params.
+- **Boundary docs**: `security.md` §16 (String-on-heap, no-browser-extension,
+  decoy-vs-coercion, KDF calibration).
+- **Dependency audit**: removed unused `pointycastle 3.9.1` (flagged advisory
+  surface); allowlist now 13 deps.
+
+### CI fixes (DONE)
+- Fixed hallucinated `subosito/flutter-action` SHA pin (real SHA for v2.23.0).
+- Added `dependabot.yml`, least-privilege `permissions`, `concurrency`,
+  SHA-pinned gitleaks job.
+
+### Next goals
+1. **Device-only verification** (needs real Android): autofill per-event
+   confirmation, Keystore attestation, FLAG_SECURE.
+2. **Baseline regeneration**: 15 stale mutation search strings + 75 untested
+   security comments (comment-traceability gate).
+3. **`very_good_analysis` adoption** (dependency decision; update allowlist).
+4. **Decrypt-on-demand** (post-ship): remove the String-on-heap boundary.
+5. **External audit** (P0 blocker).
+
+---
+
+**Bottom line:** Crypto core and V6.5 features mathematically verified (137/137 mutation kill). Full suite is 584 tests, all passing. Security gate suites complete. Eight fuzzers, 0 crashes/timeouts. Linux (Hermetic/Wayland) and Android (Binder-closed/Passkeys) builds verified. V6.5.3 remediated a live mutation-window bug and fixed the KDF floor (64 MiB was silently reduced to 64 KiB). Security roadmap Phases 0-3 executed: all four P0 gaps closed, god-class split done, KDF calibration added, unused `pointycastle` removed. Remaining: device-only verification, baseline regeneration, external audit. See [`TESTING.md`](TESTING.md) for the full verification registry.

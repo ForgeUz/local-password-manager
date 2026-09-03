@@ -325,6 +325,11 @@ class MainActivity : FlutterFragmentActivity() {
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setUserAuthenticationRequired(true)
                 .setInvalidatedByBiometricEnrollment(true)
+                // Phase 1.3: prefer StrongBox-backed keys where the device
+                // supports it, so a compromised OS build cannot extract the
+                // VRK from the TEE. Best-effort: devices without StrongBox
+                // fall back to the TEE-backed key.
+                .setIsStrongBoxBacked(true)
                 .build()
             keyGenerator.init(spec)
             keyGenerator.generateKey()

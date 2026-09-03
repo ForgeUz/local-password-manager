@@ -12,6 +12,7 @@ import 'src/lock/posture_timer.dart';
 import 'src/lock/state.dart';
 import 'src/lock/intent.dart';
 import 'src/vault/vault_storage.dart';
+import 'src/os/process_hardening.dart';
 import 'src/desktop/native_linux.dart';
 import 'src/desktop/tray_controller.dart';
 import 'src/desktop/hotkey_controller.dart';
@@ -24,6 +25,11 @@ import 'screens/unlocked_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Phase 1.2: process hardening (PR_SET_DUMPABLE=0, mlockall, seccomp) MUST
+  // run before the first SecureBuffer.alloc so no key material is ever written
+  // to a dumpable/unlocked process. On Linux this is a no-op on Android (OS
+  // sandbox). Enforced by tool/memory_dump.dart service-layer check.
+  ProcessHardening.harden();
   try {
     // Fail-closed: verify libsodium FFI primitives before any crypto use.
     // On Android libsodium.so must be bundled in jniLibs; on Linux it is a

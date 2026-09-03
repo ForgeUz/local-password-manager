@@ -492,3 +492,56 @@ VERIFY:
 5. BLE 10m range physical, not software-enforced.
 6. TOFU first-pairing vulnerable to MITM.
 7. Native Android CredentialManager (Passkeys) requires Android 14+.
+
+---
+
+## 16. Accepted Security Boundaries (Part III / Phase 3.2)
+
+These are deliberate, documented trade-offs — not hidden gaps. Each is the
+"line" the design draws, and each is enforced by a test or tool.
+
+### 16.1 String-on-heap boundary (post-unlock entry passwords)
+
+**Accepted trade-off:** after unlock, entry passwords are immutable Dart
+`String`s in the UI model. They persist until non-deterministic GC, and a
+memory dump of an *unlocked* session reveals them. This is the honest boundary:
+KDF + at-rest encryption + process hardening (`PR_SET_DUMPABLE=0`, `mlockall`,
+seccomp) + `SecureBuffer` for key material is the line. The crypto core never
+holds a password as a `String`; only the UI model does.
+
+**Mitigations in place:** `SecureBuffer` for VRK/MK; service-layer key
+zeroization (CWE-226, Part II item 2); `memory_dump` CI gate.
+
+**Backlog:** decrypt-on-demand (Phase 3.4) would remove this limitation by
+decrypting a single entry into secure memory on reveal and wiping it after.
+
+### 16.2 No-browser-extension boundary
+
+**Structural advantage:** this app is NOT a browser extension. The 2025
+autofill clickjacking zero-day (1Password/Bitwarden/Dashlane/Keeper/LastPass)
+and browser-credential-store harvesting by infostealers are structurally
+inapplicable. Credentials live only in the encrypted local blob.
+
+**Rule:** never add a browser extension without per-domain user confirmation on
+first fill. If one is ever added, it must go through the dependency-addition
+protocol (Part III-C) and the autofill per-event confirmation flow.
+
+### 16.3 Decoy-vault-vs-coercion threat model
+
+**The decoy vault is the counter-weapon against AI deepfake vishing.** Under
+coercion, the user surrenders the duress MP; the coercer gets a plausible fake
+vault; the primary stays safe. The write-guard (Part II item 1) makes the
+coercer's follow-up demand ("add an entry to prove it's real") safe instead of
+catastrophic: a duress session is read-only, so a write cannot relock the
+primary region under VRK_duress.
+
+**Layers:** duress write-guard (test `duress session is read-only`), risk-tier
+re-auth (Critical demands a fresh MP even mid-session), canary alarms (any
+honeypot access locks + flags lockdown).
+
+### 16.4 KDF calibration at creation
+
+`createVault` accepts `kdfMemory`/`kdfIterations`/`kdfParallelism` above the
+floor (Phase 3.1). The header records the actual params so unlock/reauth/
+export/shares re-derive them consistently. Defaults to the floor (64 MiB / 3
+iterations) for compatibility. Enforced by test `KDF calibration at creation`.

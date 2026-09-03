@@ -1,0 +1,11 @@
+# Dependabot keeps the SHA-pinned GitHub Actions up to date. The version
+# comment after each pin (e.g. "# v2.23.0") is what Dependabot parses to
+# propose a bump. The test suite is the validator: a compromised maintainer
+# moving a mutable tag cannot silently reach us because we pin to immutable
+# SHAs, and Dependabot PRs run the full CI before merge.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

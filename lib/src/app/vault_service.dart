@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'app_store.dart';
-import '../backup/csv_importer.dart';
+import '../backup/csv_service.dart';
 import '../backup/mp_strength.dart';
 import '../backup/snapshot_manager.dart';
+import '../coercion/canary_service.dart';
+import '../coercion/decoy_service.dart';
 import '../coercion/decoy_vault.dart';
 import '../crypto/errors.dart';
 import '../crypto/native/argon2id.dart';
@@ -21,6 +22,7 @@ import '../lock/lockable.dart';
 import '../lock/secret_wiper.dart';
 import '../lock/state.dart';
 import '../security/random_subset.dart';
+import '../security/recovery_service.dart';
 import '../security/risk_tiers.dart';
 import '../security/shamir_kit.dart';
 import '../security/security_dashboard.dart';
@@ -86,9 +88,20 @@ class VaultService implements Lockable {
   // Guarded to debug builds: shipping a public VRK-copying accessor in release
   // would let any caller exfiltrate the master key material. Uses a const
   // debug flag (no Flutter dependency in this pure-Dart module).
-  static const bool _debug = bool.fromEnvironment('dart.vm.product') == false;
+  // Compile-time debug flag. bool.fromEnvironment with a const is evaluated at
+  // compile time, so in a release build (dart.vm.product=true) the branch below
+  // is eliminated entirely and debugVrk can never return key material.
+  static const bool _isDebug = !bool.fromEnvironment('dart.vm.product');
+  // Exposed for the release-guard regression test: proves the flag is a
+  // compile-time constant (not a runtime assert).
+  static const bool debugVrkIsDebug = _isDebug;
   Uint8List get debugVrk {
-    assert(_debug, 'debugVrk is debug-only');
+    // P0: the old guard was assert(_debug, ...) which compiles OUT in release
+    // while the body still executed -> a VRK-copying accessor shipped in every
+    // build. Now the const branch is dead-code-eliminated in release and throws
+    // in debug when the flag is off. Enforced by test/app/vault_service_test.dart
+    // 'debugVrk throws in release builds'.
+    if (!_isDebug) throw StateError('debugVrk is debug-only');
     final b = _vrk?.readBytes();
     return b == null ? Uint8List(0) : Uint8List.fromList(b);
   }
@@ -153,16 +166,24 @@ class VaultService implements Lockable {
     });
   }
 
-  Future<void> createVault(SecureBuffer mp) async {
+  Future<void> createVault(SecureBuffer mp,
+      {int? kdfMemory, int? kdfIterations, int? kdfParallelism}) async {
     await _mutex.synchronized(() async {
       // Seed 3 honeypot canaries (v4 §6.1). They look real but are invisible in
-      // the UI; any access triggers the alarm (lock + lockdown).
-      _entries = _generateCanaries();
+      // the UI; any access triggers the alarm (lock + lockdown). Delegated to
+      // CanaryService (god-class split).
+      _entries = CanaryService.generate();
       final json = Uint8List.fromList(
         jsonEncode({'entries': _entries.map((e) => e.toJson()).toList()})
             .codeUnits,
       );
-      _currentBlob = await _crypto.lockVault(json, mp);
+      // Phase 3.1: KDF calibration at creation. Defaults to the floor; callers
+      // may raise memory/iterations. The header records the actual params so
+      // unlock/reauth/export/shares re-derive them consistently.
+      _currentBlob = await _crypto.lockVault(json, mp,
+          kdfMemory: kdfMemory,
+          kdfIterations: kdfIterations,
+          kdfParallelism: kdfParallelism);
       _blobSalt = V4Header.parse(_currentBlob!).salt;
       await _storage.writeBlob(_currentBlob!);
       await _snapshots.saveSnapshot(_currentBlob!);
@@ -171,6 +192,9 @@ class VaultService implements Lockable {
       // Hold the VRK so the user can add entries immediately after creation
       // (state-loss fix: addEntry silently returned when _vrk was null).
       final header = V4Header.parse(_currentBlob!);
+      // P0: zeroize the service-layer MK after deriving the VRK (CWE-226).
+      // Enforced by test/app/vault_service_test.dart 'service-layer keys are
+      // zeroed after derivation'.
       final mk = Argon2id.derive(
         mp.readBytes(),
         header.salt,
@@ -178,8 +202,12 @@ class VaultService implements Lockable {
         iterations: header.kdfIterations,
         parallelism: header.kdfParallelism,
       );
-      _vrk?.dispose();
-      _vrk = SecureBuffer.fromList(KeyHierarchy.deriveVrk(mk));
+      try {
+        _vrk?.dispose();
+        _vrk = SecureBuffer.fromList(KeyHierarchy.deriveVrk(mk));
+      } finally {
+        mk.fillRange(0, mk.length, 0);
+      }
       _isDuress = false;
 
       _store.dispatch(
@@ -193,14 +221,19 @@ class VaultService implements Lockable {
     return _mutex.synchronized(() async {
       try {
         final blob = _currentBlob!;
-        final entries = VaultCryptoV4.decryptToEntries(blob, vrk);
+        // P1: use the full session so _searchTags is populated (SSE search was
+        // silently broken after a biometric unlock). Tags live in the header,
+        // no MP needed. Enforced by test/app/vault_service_test.dart
+        // 'search works after unlockWithVrk'.
+        final session = VaultCryptoV4.unlockSessionWithVrk(blob, vrk);
         _vrk?.dispose();
-        _vrk = SecureBuffer.fromList(vrk);
+        _vrk = session.vrk;
         // Zero the caller's plaintext VRK copy now that it lives in native
         // secure memory. Prevents the VRK lingering in Dart heap memory.
         vrk.fillRange(0, vrk.length, 0);
         _blobSalt = V4Header.parse(blob).salt;
-        _entries = entries;
+        _entries = session.entries;
+        _searchTags = session.searchTags;
         _isDuress = false;
         _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
         return true;
@@ -211,33 +244,39 @@ class VaultService implements Lockable {
   }
 
   Future<void> unlock(SecureBuffer mp) async {
-    try {
-      final blob = _currentBlob!;
-      UnlockSession session;
-      bool duress = false;
+    // P0: unlock() swaps _vrk/_entries/_searchTags/_isDuress. It must run under
+    // the mutex so a concurrent addEntry (which holds the mutex) cannot
+    // interleave with the state swap. lock() runs OUTSIDE the mutex (see
+    // importVaultFile), so no self-deadlock.
+    await _mutex.synchronized(() async {
       try {
-        session = await _crypto.unlockSession(blob, mp);
+        final blob = _currentBlob!;
+        UnlockSession session;
+        bool duress = false;
+        try {
+          session = await _crypto.unlockSession(blob, mp);
+        } on DecryptionFailedError {
+          // Primary VRK failed -> try slot 2 (decoy vault) under VRK_duress.
+          // Slot 2 is noise when deniability is disabled -> duress fails too.
+          session = await _crypto.duressUnlockSession(blob, mp);
+          duress = true;
+        } on DuressDecryptError {
+          _store.dispatch(UnlockFail());
+          return;
+        }
+        _vrk?.dispose();
+        _vrk = session.vrk;
+        _blobSalt = V4Header.parse(blob).salt;
+        _entries = session.entries;
+        _searchTags = session.searchTags;
+        _isDuress = duress;
+        _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
       } on DecryptionFailedError {
-        // Primary VRK failed -> try slot 2 (decoy vault) under VRK_duress.
-        // Slot 2 is noise when deniability is disabled -> duress fails too.
-        session = await _crypto.duressUnlockSession(blob, mp);
-        duress = true;
-      } on DuressDecryptError {
         _store.dispatch(UnlockFail());
-        return;
+      } catch (_) {
+        _store.dispatch(UnlockFail());
       }
-      _vrk?.dispose();
-      _vrk = session.vrk;
-      _blobSalt = V4Header.parse(blob).salt;
-      _entries = session.entries;
-      _searchTags = session.searchTags;
-      _isDuress = duress;
-      _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
-    } on DecryptionFailedError {
-      _store.dispatch(UnlockFail());
-    } catch (_) {
-      _store.dispatch(UnlockFail());
-    }
+    });
   }
 
   @override
@@ -246,14 +285,24 @@ class VaultService implements Lockable {
       SecretWiper.wipe(_vrk!);
       _vrk = null;
     }
+    // P0: lock() must clear ALL session state, not just _entries. Leaving
+    // _searchTags/_lastReveal/_isDuress stale meant a duress session's flag
+    // survived lock -> the next primary unlock wrongly stayed in duress mode
+    // and the write-guards blocked legitimate writes. Enforced by
+    // test/app/vault_service_test.dart 'lock() clears all session state'.
     _entries = [];
+    _searchTags = {};
+    _lastReveal.clear();
+    _isDuress = false;
     _store.dispatch(AutoLock());
   }
 
   Future<void> addEntry(VaultEntry entry, {int? tier}) async {
     if (_vrk == null) return;
+    _guardDuressWrite();
     await _mutex.synchronized(() async {
       if (_vrk == null) return;
+      _guardDuressWrite();
       final v4 = V4VaultEntry(
         id: entry.id,
         title: entry.title,
@@ -287,9 +336,21 @@ class VaultService implements Lockable {
     final targetIndex = _entries.indexWhere((e) => e.id == id);
     if (targetIndex < 0) return null;
     if (_entries[targetIndex].isCanary) {
-      // Fire-and-forget: getEntry is sync; the alarm sets _canaryTriggered
-      // synchronously then awaits the VRK wipe.
-      unawaited(_triggerCanaryAlarm());
+      // P1: reject canary access synchronously and wipe the VRK BEFORE this
+      // returns, so the VRK is never live after a canary hit. The old code
+      // fire-and-forgot an async wipe, leaving a window where the VRK was still
+      // live. Enforced by test/app/vault_service_test.dart
+      // 'canary access wipes VRK synchronously'.
+      _canaryTriggered = true;
+      if (_vrk != null) {
+        SecretWiper.wipe(_vrk!);
+        _vrk = null;
+      }
+      _entries = [];
+      _searchTags = {};
+      _lastReveal.clear();
+      _isDuress = false;
+      _store.dispatch(AutoLock());
       return null;
     }
 
@@ -338,8 +399,16 @@ class VaultService implements Lockable {
     if (blob == null) return false;
     try {
       final mk = await _deriveMk(blob, mp);
-      final vrk = KeyHierarchy.deriveVrk(mk);
-      if (!_constTimeEq(vrk, _vrk!.readBytes())) return false;
+      try {
+        final vrk = KeyHierarchy.deriveVrk(mk);
+        try {
+          if (!_constTimeEq(vrk, _vrk!.readBytes())) return false;
+        } finally {
+          vrk.fillRange(0, vrk.length, 0);
+        }
+      } finally {
+        mk.fillRange(0, mk.length, 0);
+      }
     } catch (_) {
       return false;
     }
@@ -404,8 +473,10 @@ class VaultService implements Lockable {
   // The private key remains in the Android Keystore. Triggers relock.
   Future<void> attachPasskey(String entryId, String credentialId) async {
     if (_vrk == null) return;
+    _guardDuressWrite();
     await _mutex.synchronized(() async {
       if (_vrk == null) return;
+      _guardDuressWrite();
       final idx = _entries.indexWhere((e) => e.id == entryId);
       if (idx < 0) return;
       _entries[idx].passkeyCredentialId = credentialId;
@@ -466,6 +537,19 @@ class VaultService implements Lockable {
     return diff == 0;
   }
 
+  // Duress write-guard (P0): a decoy session is read-only. Any mutator that
+  // relocks under VRK_duress would overwrite the primary region with a blob
+  // whose outer tag is under the duress key -> the primary vault is permanently
+  // bricked (unlockSession never derives VRK_duress for the primary). Throw
+  // (fail-fast) so the coercion scenario surfaces instead of silently
+  // destroying the vault. Enforced by test/app/vault_service_test.dart
+  // 'duress session is read-only: writes are rejected'.
+  void _guardDuressWrite() {
+    if (_isDuress) {
+      throw StateError('decoy session is read-only');
+    }
+  }
+
   // Local Security Dashboard (Phase K.1): dup/weak/old warnings, fully local.
   List<DashboardWarning> dashboardWarnings() {
     final records = _entries
@@ -489,35 +573,18 @@ class VaultService implements Lockable {
   // CsvImporter, imports each row, relocks + saves.
   Future<int> importCsv(String csv, {String? sourcePath}) async {
     if (_vrk == null) return 0;
-    final json = CsvImporter.parse(csv);
-    final list = (jsonDecode(utf8.decode(json)) as List)
-        .map((e) => e as Map<String, dynamic>)
-        .toList();
+    _guardDuressWrite();
     // Batch: build all entries first, then relock ONCE. The old code called
     // addEntry per row, doing a full re-encrypt + atomic write per row (O(n)
     // relocks). Under the mutex this serializes correctly but is wasteful.
-    final newEntries = <V4VaultEntry>[];
-    var count = 0;
-    for (final row in list) {
-      final title = (row['title'] ?? '') as String;
-      final username = (row['username'] ?? '') as String;
-      final password = (row['password'] ?? '') as String;
-      if (title.isEmpty && password.isEmpty) continue;
-      newEntries.add(V4VaultEntry(
-        id: DateTime.now().microsecondsSinceEpoch.toString() + count.toString(),
-        title: title,
-        username: username,
-        password: password,
-        url: title.toLowerCase(),
-        domain: title.toLowerCase(),
-        tier: RiskTiers.suggestTier(title.toLowerCase()),
-      ));
-      count++;
-    }
+    // Delegated to CsvService (god-class split).
+    final newEntries = CsvService.parseImport(csv);
+    final count = newEntries.length;
     if (newEntries.isEmpty) return 0;
 
     await _mutex.synchronized(() async {
       if (_vrk == null) return;
+      _guardDuressWrite();
       _entries.addAll(newEntries);
       for (final e in newEntries) {
         _searchTags[e.id] =
@@ -548,32 +615,27 @@ class VaultService implements Lockable {
     // Derive from the HEADER KDF params (not the floor) so a vault created
     // above the floor still exports on the correct MP.
     final mk = await _deriveMk(blob, mp);
-    final vrk = KeyHierarchy.deriveVrk(mk);
-    if (!_constTimeEq(vrk, _vrk!.readBytes())) {
-      throw DecryptionFailedError();
+    try {
+      final vrk = KeyHierarchy.deriveVrk(mk);
+      try {
+        if (!_constTimeEq(vrk, _vrk!.readBytes())) {
+          throw DecryptionFailedError();
+        }
+      } finally {
+        vrk.fillRange(0, vrk.length, 0);
+      }
+    } finally {
+      mk.fillRange(0, mk.length, 0);
     }
 
     // CSV escaping: quote embedded quotes (""), and neutralize formula
-    // injection (=, +, -, @) that Excel would execute on open.
-    String cell(String s) {
-      var v = s;
-      if (v.startsWith('=') ||
-          v.startsWith('+') ||
-          v.startsWith('-') ||
-          v.startsWith('@')) {
-        v = "'$v";
-      }
-      return '"${v.replaceAll('"', '""')}"';
-    }
+    // injection (=, +, -, @) that Excel would execute on open. Delegated to
+    // CsvService (god-class split).
+    final csv = CsvService.buildExport(_entries);
 
-    final rows = _entries
-        .where((e) => !e.isCanary)
-        .map((e) =>
-            '${cell(e.title)},${cell(e.username)},${cell(e.password)},${cell(e.url)}')
-        .toList();
-    final csv = 'title,username,password,url\n${rows.join('\n')}';
-
-    final strength = MpStrength.check(utf8.decode(mp.readBytes()));
+    // P0: strength check on the raw bytes, not a decoded String, so the MP
+    // never materializes as an immutable GC-heap String.
+    final strength = MpStrength.checkBytes(mp.readBytes());
     final warning = strength.strength == MpStrengthLevel.weak
         ? 'Weak master password. Exported vault is only as strong as its MP: ${strength.warning}'
         : null;
@@ -591,19 +653,26 @@ class VaultService implements Lockable {
     List<V4VaultEntry> entries,
   ) async {
     return _mutex.synchronized(() async {
+      _guardDuressWrite();
       final blob = _currentBlob;
       if (blob == null) throw StateError('No vault loaded');
       final header = V4Header.parse(blob);
       final salt = header.salt;
-      final decoyJson = Uint8List.fromList(
-        jsonEncode({'entries': entries.map((e) => e.toJson()).toList()})
-            .codeUnits,
-      );
+      // Delegated to DecoyService (god-class split).
+      final decoyJson = DecoyService.buildDecoyJson(entries);
       final decoy = await _crypto.lockDecoy(decoyJson, duressMp, salt);
       // Re-lock the primary vault with the decoy embedded in slot 2.
       final mk = await _deriveMk(blob, primaryMp);
-      final vrk = KeyHierarchy.deriveVrk(mk);
-      _currentBlob = await _relockCurrent(vrk, _entries, decoyBlob: decoy);
+      try {
+        final vrk = KeyHierarchy.deriveVrk(mk);
+        try {
+          _currentBlob = await _relockCurrent(vrk, _entries, decoyBlob: decoy);
+        } finally {
+          vrk.fillRange(0, vrk.length, 0);
+        }
+      } finally {
+        mk.fillRange(0, mk.length, 0);
+      }
       await _storage.writeBlobAtomic(_currentBlob!);
       return DecoyVault.generateCancellationCode();
     });
@@ -620,10 +689,9 @@ class VaultService implements Lockable {
     final blob = _currentBlob;
     if (blob == null) throw StateError('No vault loaded');
     // Derive from the HEADER KDF params (not the floor) so shares always match
-    // the vault's actual MK derivation.
-    final mk = await _deriveMk(blob, mp);
-    final shares = ShamirKit.split(mk, n: n, k: k);
-    return shares.map(ShamirKit.encodeShare).toList();
+    // the vault's actual MK derivation. Delegated to RecoveryService
+    // (god-class split); MK zeroed inside.
+    return RecoveryService.generateShares(blob, mp, n: n, k: k);
   }
 
   // Shamir recovery (Phase I.8): reconstruct the MK from K shares and unlock.
@@ -633,20 +701,27 @@ class VaultService implements Lockable {
     return _mutex.synchronized(() async {
       final blob = _currentBlob;
       if (blob == null) return false;
-      final mk = ShamirKit.reconstruct(shares);
+      final mk = RecoveryService.reconstruct(shares);
       final header = V4Header.parse(blob);
-      final vrk = KeyHierarchy.deriveVrk(mk);
       try {
-        final entries = VaultCryptoV4.decryptToEntries(blob, vrk);
-        _vrk?.dispose();
-        _vrk = SecureBuffer.fromList(vrk);
-        _blobSalt = header.salt;
-        _entries = entries;
-        _isDuress = false;
-        _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
-        return true;
-      } catch (_) {
-        return false;
+        final vrk = KeyHierarchy.deriveVrk(mk);
+        try {
+          // P1: full session so _searchTags is populated (search was silently
+          // broken after a shares unlock).
+          final session = VaultCryptoV4.unlockSessionWithVrk(blob, vrk);
+          _vrk?.dispose();
+          _vrk = session.vrk;
+          _blobSalt = header.salt;
+          _entries = session.entries;
+          _searchTags = session.searchTags;
+          _isDuress = false;
+          _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
+          return true;
+        } finally {
+          vrk.fillRange(0, vrk.length, 0);
+        }
+      } finally {
+        mk.fillRange(0, mk.length, 0);
       }
     });
   }
@@ -690,6 +765,7 @@ class VaultService implements Lockable {
   Future<void> changeMasterPassword(
       SecureBuffer oldMp, SecureBuffer newMp) async {
     await _mutex.synchronized(() async {
+      _guardDuressWrite();
       final blob = _currentBlob;
       if (blob == null) throw StateError('No vault loaded');
       final sfmFile =
@@ -715,67 +791,28 @@ class VaultService implements Lockable {
         iterations: header.kdfIterations,
         parallelism: header.kdfParallelism,
       );
-      final newVrk = KeyHierarchy.deriveVrk(mk);
-      _vrk?.dispose();
-      _vrk = SecureBuffer.fromList(newVrk);
-      _searchTags = {};
-      for (final e in _entries) {
-        _searchTags[e.id] = SearchTag.computePrefixes(newVrk, e.domain);
+      try {
+        final newVrk = KeyHierarchy.deriveVrk(mk);
+        try {
+          _vrk?.dispose();
+          _vrk = SecureBuffer.fromList(newVrk);
+          _searchTags = {};
+          for (final e in _entries) {
+            _searchTags[e.id] = SearchTag.computePrefixes(newVrk, e.domain);
+          }
+        } finally {
+          newVrk.fillRange(0, newVrk.length, 0);
+        }
+      } finally {
+        mk.fillRange(0, mk.length, 0);
       }
     });
   }
 
-  // Canary alarm (v4 §6.1): lock immediately, wipe VRK, flag lockdown.
-  // The lock is awaited so the VRK wipe completes before the caller returns
-  // (the old unawaited lock() left a window where the VRK was still live).
-  Future<void> _triggerCanaryAlarm() async {
-    _canaryTriggered = true;
-    await lock();
-  }
-
   // Test hook: expose the canary generator for the decoy-data sanitization
   // test (asserts no forbidden words leak into user-visible fields).
-  static List<V4VaultEntry> generateCanariesForTest() => _generateCanaries();
-
-  // Generate 3 realistic-looking honeypot canaries (v4 §6.1). Marked isCanary
-  // so the UI filters them and access triggers the alarm. The fake data MUST
-  // look like real accounts — realistic domains, usernames, strong passwords.
-  // NO words like "canary/decoy/fake/dummy/test/example/bunker" in any
-  // user-visible field (a coercer seeing them destroys plausible deniability).
-  static List<V4VaultEntry> _generateCanaries() {
-    final seed = DateTime.now().millisecondsSinceEpoch;
-    final titles = ['Netflix', 'Reddit', 'Steam'];
-    final domains = ['netflix.com', 'reddit.com', 'steam.com'];
-    final users = ['john.doe', 'user1990', 'm.kowalski'];
-    return List.generate(3, (i) {
-      final n = seed + i;
-      return V4VaultEntry(
-        id: 'c_$n',
-        title: titles[i],
-        username: users[i],
-        password: _randomStrongPassword(n),
-        url: domains[i],
-        domain: domains[i],
-        tier: 0,
-        isCanary: true,
-      );
-    });
-  }
-
-  // CSPRNG strong password (12 chars, mixed classes).
-  static String _randomStrongPassword(int seed) {
-    final r = Random.secure();
-    const lower = 'abcdefghijklmnopqrstuvwxyz';
-    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const digits = '0123456789';
-    const syms = '!@#\$%^&*';
-    final all = lower + upper + digits + syms;
-    final sb = StringBuffer();
-    for (var i = 0; i < 12; i++) {
-      sb.write(all[r.nextInt(all.length)]);
-    }
-    return sb.toString();
-  }
+  // Delegated to CanaryService (god-class split).
+  static List<V4VaultEntry> generateCanariesForTest() => CanaryService.generate();
 
   // UI-facing entry list excludes canaries (they are invisible to the user).
   static VaultData _toVaultData(List<V4VaultEntry> entries) {

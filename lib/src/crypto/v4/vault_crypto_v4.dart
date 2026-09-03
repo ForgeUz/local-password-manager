@@ -177,17 +177,26 @@ class VaultCryptoV4 {
   Future<Uint8List> lockVault(Uint8List jsonUtf8, SecureBuffer mp,
       {Uint8List? totpBytes,
       Uint8List? decoyBlob,
-      Uint8List? fixedSalt}) async {
+      Uint8List? fixedSalt,
+      int? kdfMemory,
+      int? kdfIterations,
+      int? kdfParallelism}) async {
     final entries = _parseEntries(jsonUtf8);
     final salt = fixedSalt ?? _randomBytes(V4Constants.saltSize);
     final nonce = _randomBytes(V4Constants.nonceSize);
+    // Phase 3.1: KDF calibration at creation. Defaults to the floor so existing
+    // vaults/tests are unchanged; callers may raise memory/iterations above the
+    // floor. The header records the actual params so unlock re-derives them.
+    final mem = kdfMemory ?? V4Constants.kdfFloorMemory;
+    final iter = kdfIterations ?? V4Constants.kdfFloorIterations;
+    final par = kdfParallelism ?? V4Constants.kdfFloorParallelism;
 
     final mk = Argon2id.derive(
       mp.readBytes(),
       salt,
-      memory: V4Constants.kdfFloorMemory,
-      iterations: V4Constants.kdfFloorIterations,
-      parallelism: V4Constants.kdfFloorParallelism,
+      memory: mem,
+      iterations: iter,
+      parallelism: par,
     );
 
     try {
@@ -197,9 +206,9 @@ class VaultCryptoV4 {
           vrk,
           salt,
           nonce,
-          V4Constants.kdfFloorMemory,
-          V4Constants.kdfFloorIterations,
-          V4Constants.kdfFloorParallelism,
+          mem,
+          iter,
+          par,
           entries,
           decoyBlob: decoyBlob,
         );
@@ -300,6 +309,19 @@ class VaultCryptoV4 {
     blob.setRange(headerBytes.length, headerBytes.length + slot2.length, slot2);
     blob.setRange(headerBytes.length + slot2.length, blob.length, outerTag);
     return blob;
+  }
+
+  /// Held-VRK unlock (biometric/shares fast path). Returns a full session
+  /// including search tags, so the caller can populate SSE search without an
+  /// MP. The caller owns the returned SecureBuffer lifecycle.
+  ///
+  /// SECURITY: All decryption errors throw DecryptionFailedError (no error oracle).
+  static UnlockSession unlockSessionWithVrk(Uint8List blob, Uint8List vrk) {
+    if (blob.length < V4Constants.fixedHeaderSize + V4Constants.tagSize) {
+      throw CorruptBlobError();
+    }
+    final header = V4Header.parse(blob);
+    return _decryptSession(blob, header, vrk);
   }
 
   /// Decrypt a blob and return the parsed entries, throwing on wrong VRK.
@@ -579,7 +601,7 @@ class VaultCryptoV4 {
   /// Single-pass: verifies the outer header MAC (wrong VRK fails here), then
   /// decrypts each entry exactly once while capturing search tags. All
   /// decryption/parse errors become DecryptionFailedError (no error oracle).
-  UnlockSession _decryptSession(
+  static UnlockSession _decryptSession(
       Uint8List blob, V4Header header, Uint8List vrk) {
     final vrkBuf = SecureBuffer.fromList(vrk);
     // Verify outer tag; wrong VRK fails here.
