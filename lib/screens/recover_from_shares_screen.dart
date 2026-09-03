@@ -52,6 +52,7 @@ class _RecoverFromSharesScreenState extends State<RecoverFromSharesScreen> {
       return;
     }
     final ok = await widget.service.unlockWithShares(shares);
+    if (!mounted) return;
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Recovery failed: shares do not match.')),

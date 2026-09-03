@@ -56,8 +56,9 @@ class Inheritance {
   // Decrypt an inheritance entry under the unwrapped bundle secret. A wrong key
   // (old shares after revocation) -> GCM tag mismatch -> InheritanceActivationError.
   static Uint8List decryptEntry(Uint8List wrapped, Uint8List bundleSecret) {
-    if (wrapped.length < _nonceSize + 16)
+    if (wrapped.length < _nonceSize + 16) {
       throw InheritanceActivationError('bad entry');
+    }
     final nonce = wrapped.sublist(0, _nonceSize);
     try {
       final ct = wrapped.sublist(_nonceSize);
@@ -78,8 +79,9 @@ class Inheritance {
     required int graceMs,
     required int frictionIterations,
   }) {
-    if (shares.length < k)
+    if (shares.length < k) {
       throw InheritanceActivationError('fewer than K shares');
+    }
     // Verify the token signature + epoch (forged/newer rejected).
     final (_, ts) = Liveness.verify(vrk, token, token.epoch);
     // Staleness: token must be OLDER than check-in + grace.

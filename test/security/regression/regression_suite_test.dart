@@ -8,6 +8,7 @@
 // - Regression tests reference the issue/PR that fixed them.
 // Dependencies: header.dart, errors.dart, V4Constants.
 
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -55,6 +56,22 @@ void main() {
       } on RangeError {
         fail('REGRESSION: RangeError leaked on truncated entry table');
       }
+    });
+
+    test('REGRESSION: no live mutation markers in lib/', () async {
+      // A mutation-testing campaign (tool/mutation_campaign.dart) patches
+      // source to inject bugs. One escaped into production (the wrong-nonce
+      // header MAC) and broke every lock->unlock round-trip. This guard fails
+      // CI if any live MUTATION marker is ever committed again.
+      final hits = <String>[];
+      await for (final e in Directory('lib').list(recursive: true)) {
+        if (e is File &&
+            e.path.endsWith('.dart') &&
+            (await e.readAsString()).contains('MUTATION')) {
+          hits.add(e.path);
+        }
+      }
+      expect(hits, isEmpty, reason: 'live mutations: $hits');
     });
   });
 }

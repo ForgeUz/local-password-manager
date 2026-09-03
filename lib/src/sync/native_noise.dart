@@ -1,3 +1,6 @@
+// ignore_for_file: constant_identifier_names, non_constant_identifier_names
+// Names mirror libsodium C constants (KEYBYTES, NONCEBYTES, ABYTES).
+
 import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
@@ -120,8 +123,9 @@ class NativeNoise {
 
   Uint8List decryptFromSelf(Uint8List ct) {
     // Fail-fast: ciphertext must carry at least the 16-byte box tag.
-    if (ct.length < _ABYTES)
+    if (ct.length < _ABYTES) {
       throw StateError('crypto_box ciphertext too short');
+    }
     final lib = DynamicLibrary.open('libsodium.so.23');
     final box = lib.lookupFunction<BoxOpenEasyNative, BoxOpenEasyDart>(
         'crypto_box_open_easy');

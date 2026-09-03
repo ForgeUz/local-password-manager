@@ -189,6 +189,10 @@ class _VaultAppState extends State<VaultApp> {
   late final LifecycleController _lifecycle;
   late final PostureTimer _postureTimer;
   late final _LockObserver _lockObserver;
+  // Kept alive for the lifetime of the app: the constructor registers the
+  // MethodChannel handler (VaultAutofillService -> Dart). Dropping the reference
+  // would let GC collect it and silently kill autofill.
+  // ignore: unused_field
   AndroidAutofillBridge? _autofillBridge;
   TrayController? _tray;
   HotkeyController? _hotkey;

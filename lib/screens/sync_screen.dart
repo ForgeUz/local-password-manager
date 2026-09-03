@@ -130,6 +130,7 @@ class _SyncScreenState extends State<SyncScreen> {
     final tmp = await getTemporaryDirectory();
     final path = '${tmp.path}/sync_incoming.vault';
     await File(path).writeAsBytes(bytes, flush: true);
+    if (!mounted) return;
 
     final mpController = TextEditingController();
 

@@ -34,6 +34,7 @@ class ShamirKit {
   }
 
   // AES irreducible polynomial x^8+x^4+x^3+x+1 = 0x11b.
+  // ignore: constant_identifier_names (mirrors GF(2^8) polynomial notation)
   static const int _GF_POLY = 0x11b;
 
   // Split a secret (byte array) into n shares; any k reconstruct it.

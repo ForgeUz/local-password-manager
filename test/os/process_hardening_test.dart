@@ -1,3 +1,6 @@
+// ignore_for_file: constant_identifier_names
+// Mirrors Linux C constant (PR_GET_DUMPABLE).
+
 import 'dart:ffi';
 import 'dart:io';
 import 'package:test/test.dart';

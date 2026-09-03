@@ -1,3 +1,6 @@
+// ignore_for_file: constant_identifier_names
+// VALID_TRANSITIONS is a domain-named constant (not a C mirror); kept for clarity.
+
 // File: test/security/statemachine/vault_state_model.dart
 // Intent: security2.md gate 21.1 — Formal model of the vault state machine.
 // A pure, deterministic model of valid/invalid state transitions. Used by

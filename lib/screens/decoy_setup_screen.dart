@@ -136,7 +136,8 @@ class _DecoySetupScreenState extends State<DecoySetupScreen> {
           .setupDecoy(primaryMp, mp, DecoySetupScreen._secondaryEntries());
       if (mounted) setState(() => _codeShown = true);
     } catch (e) {
-      if (mounted) {
+      // Guard the passed-in context (not the State's mounted) across the await.
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Setup failed: $e')),
         );

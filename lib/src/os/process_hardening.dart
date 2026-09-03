@@ -1,3 +1,7 @@
+// ignore_for_file: constant_identifier_names, avoid_print
+// Names mirror Linux C constants (PR_SET_DUMPABLE, SECCOMP_*, BPF_*, SYS_*).
+// print() here is intentional best-effort WARN logging (no logging framework).
+
 import 'dart:ffi';
 import 'dart:io';
 import 'package:ffi/ffi.dart';

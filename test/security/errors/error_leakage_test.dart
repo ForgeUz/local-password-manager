@@ -82,9 +82,12 @@ void main() {
         outerMsg = e.toString();
       }
 
-      // Failure at entry-decrypt (tamper an entry ciphertext byte).
+      // Failure at header-MAC (tamper a header byte). The header is the outer
+      // GCM AAD, so tampering it fails the tag — same error as a wrong password.
+      // (Slot 2 is deliberately NOT covered by the tag for plausible deniability,
+      // so tampering it would be undetectable and is not a valid oracle probe.)
       final tampered = Uint8List.fromList(blob);
-      tampered[tampered.length - 17] = tampered[tampered.length - 17] ^ 0x01;
+      tampered[20] = tampered[20] ^ 0x01;
       String entryMsg = '';
       try {
         await crypto.unlockVault(tampered, _mp('right'));

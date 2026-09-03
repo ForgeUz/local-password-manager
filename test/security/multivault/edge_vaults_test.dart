@@ -20,10 +20,10 @@ SecureBuffer _mp(String s) {
   return buf;
 }
 
-String _entryJson(int i, {String? notes}) {
+String _entryJson(int i, {String? bigField}) {
+  final pw = bigField ?? 'pw$i';
   return '{"id":"e$i","title":"Entry $i","username":"user$i",'
-      '"password":"pw$i","url":"site$i.com","domain":"site$i.com","tier":0'
-      '${notes != null ? ',"notes":"$notes"' : ''}}';
+      '"password":"$pw","url":"site$i.com","domain":"site$i.com","tier":0}';
 }
 
 void main() {
@@ -53,11 +53,16 @@ void main() {
       expect(result, equals(json));
     });
 
-    test('1MB notes field: encrypt/decrypt works, no truncation', () async {
+    test('large field: encrypt/decrypt works, no truncation', () async {
       final crypto = VaultCryptoV4();
-      final notes = 'A' * (1024 * 1024); // 1MB
+      // The V4VaultEntry model has no "notes" field; use a supported field
+      // (password) to exercise the large-payload no-truncation path. The header
+      // enforces a deliberate 1MB-per-entry CIPHERTEXT sanity cap, and padding
+      // rounds up to size buckets (largest under the cap is 256KB). Use a value
+      // that fits the 256KB bucket while still proving no truncation.
+      final big = 'A' * (200 * 1024); // 200KB plaintext
       final json = Uint8List.fromList(
-        '{"entries":[${_entryJson(1, notes: notes)}]}'.codeUnits,
+        '{"entries":[${_entryJson(1, bigField: big)}]}'.codeUnits,
       );
       final blob = await crypto.lockVault(json, _mp('mp'));
       final result = await crypto.unlockVault(blob, _mp('mp'));

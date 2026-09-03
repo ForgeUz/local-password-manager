@@ -39,6 +39,14 @@ class SnapshotManager {
     return Uint8List.fromList(await files.first.readAsBytes());
   }
 
+  // Delete all snapshots (used by resetVault so no encrypted copy of the old
+  // vault survives a reset).
+  Future<void> clearSnapshots() async {
+    for (final file in _getSortedFiles()) {
+      await file.delete();
+    }
+  }
+
   List<File> _getSortedFiles() {
     if (!_storageDir.existsSync()) return [];
     final files = _storageDir.listSync().whereType<File>().toList();

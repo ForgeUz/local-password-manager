@@ -1290,6 +1290,9 @@ final List<Mutation> ALL_MUTATIONS = <Mutation>[
 // ============================================================
 // MAIN
 // ============================================================
+// HARDENING (v5 E23): the campaign runs on a TEMP COPY of the project, never
+// in-place in lib/. An interrupted run can therefore never leave the working
+// tree dirty with a live mutation. The temp copy is deleted on exit.
 void main(List<String> args) async {
   // Parse CLI options
   final quick = args.contains('--quick');
@@ -1315,101 +1318,153 @@ void main(List<String> args) async {
     exit(1);
   }
 
-  print('Mutation campaign: ${mutations.length} mutations');
-  print('Estimated runtime: ${(mutations.length * 50 / 60).toStringAsFixed(1)} min (full)');
-  print('---');
+  // Fail fast if the working tree is already dirty (a live mutation escaped).
+  final dirty = await _findMutationMarkers('lib');
+  if (dirty.isNotEmpty) {
+    print('ABORT: live MUTATION markers found in lib/ — refusing to run:');
+    for (final p in dirty) {
+      print('  $p');
+    }
+    exit(1);
+  }
 
-  var killed = 0;
-  var survived = 0;
-  var skipped = 0;
-  final results = <Mutation, String>{}; // id -> 'killed' | 'SURVIVED' | 'SKIPPED'
+  // Build a temp copy of the project so mutations never touch the real tree.
+  final tmp = await Directory.systemTemp.createTemp('mutation_campaign_');
+  try {
+    await _copyProject(tmp);
+    print('Mutation campaign: ${mutations.length} mutations');
+    print('Working copy: $tmp');
+    print('Estimated runtime: ${(mutations.length * 50 / 60).toStringAsFixed(1)} min (full)');
+    print('---');
 
-  for (var i = 0; i < mutations.length; i++) {
-    final m = mutations[i];
-    final progress = '[${i + 1}/${mutations.length}]';
-    stdout.write('$progress ${m.id} (${m.group}) ${m.invariant} ... ');
+    var killed = 0;
+    var survived = 0;
+    var skipped = 0;
+    final results = <Mutation, String>{}; // id -> 'killed' | 'SURVIVED' | 'SKIPPED'
 
-    final path = m.file;
-    final original = await File(path).readAsString();
+    for (var i = 0; i < mutations.length; i++) {
+      final m = mutations[i];
+      final progress = '[${i + 1}/${mutations.length}]';
+      stdout.write('$progress ${m.id} (${m.group}) ${m.invariant} ... ');
 
-    final mutated = original.replaceFirst(m.search, m.replace);
-    if (mutated == original) {
-      print('SKIPPED (search string not found in source)');
-      results[m] = 'SKIPPED';
-      skipped++;
+      final path = '$tmp/${m.file}';
+      final original = await File(path).readAsString();
+
+      final mutated = original.replaceFirst(m.search, m.replace);
+      if (mutated == original) {
+        print('SKIPPED (search string not found in source)');
+        results[m] = 'SKIPPED';
+        skipped++;
+        continue;
+      }
+
+      await File(path).writeAsString(mutated, flush: true);
+
+      final result = await Process.run('flutter', ['test'],
+          workingDirectory: tmp.path);
+      final caught = result.exitCode != 0;
+      results[m] = caught ? 'killed' : 'SURVIVED';
+      if (caught) {
+        killed++;
+        print('KILLED');
+      } else {
+        survived++;
+        print('SURVIVED ← GAP IN TESTS');
+      }
+
+      // Restore the original in the temp copy (keeps each run independent).
+      await File(path).writeAsString(original, flush: true);
+    }
+
+    // ----------------------
+    // REPORT
+    // ----------------------
+    print('\n${'=' * 70}');
+    print('MUTATION CAMPAIGN REPORT');
+    print('=' * 70);
+
+    final applied = killed + survived;
+    final score = applied == 0 ? 0.0 : (killed / applied) * 100;
+
+    print('Applied:  $applied / ${mutations.length}');
+    print('Killed:   $killed');
+    print('Survived: $survived');
+    print('Skipped:  $skipped');
+    print('Kill score: ${score.toStringAsFixed(1)}%');
+    print('');
+
+    // Group by group
+    final byGroup = <String, List<Mutation>>{};
+    for (final m in mutations) {
+      byGroup.putIfAbsent(m.group, () => []).add(m);
+    }
+
+    print('BY GROUP:');
+    for (final entry in byGroup.entries) {
+      final groupKilled = entry.value.where((m) => results[m] == 'killed').length;
+      final groupSurvived = entry.value.where((m) => results[m] == 'SURVIVED').length;
+      final groupSkipped = entry.value.where((m) => results[m] == 'SKIPPED').length;
+      print('  ${entry.key}: $groupKilled/${entry.value.length} killed'
+          '${groupSurvived > 0 ? " ($groupSurvived SURVIVED)" : ""}'
+          '${groupSkipped > 0 ? " ($groupSkipped skipped)" : ""}');
+    }
+
+    // Survivors list — this is the action list
+    final survivors = mutations.where((m) => results[m] == 'SURVIVED').toList();
+    if (survivors.isNotEmpty) {
+      print('\nSURVIVING MUTANTS (write tests to kill them):');
+      for (final m in survivors) {
+        print('  ${m.id} [${m.group}] — ${m.invariant}');
+        print('      file: ${m.file}');
+        print('      mutation: ${m.search.length > 60 ? '${m.search.substring(0, 60)}…' : m.search}');
+        print('');
+      }
+    }
+
+    print('');
+    if (score < 90) {
+      print('KILL SCORE < 90% — campaign FAILED (v5 E23).');
+      print('   Write new tests for each surviving mutant above, then re-run.');
+      exit(2);
+    } else {
+      print('KILL SCORE >= 90% — campaign PASSED (v5 E23).');
+      print('   Record this run in status.md and commit the report.');
+      exit(0);
+    }
+  } finally {
+    // Always clean up the temp copy, even on error/interrupt.
+    await tmp.delete(recursive: true);
+  }
+}
+
+/// Recursively copy the project (minus .git, build, .dart_tool) into [dest].
+Future<void> _copyProject(Directory dest) async {
+  final src = Directory('.');
+  await for (final e in src.list(recursive: true, followLinks: false)) {
+    final rel = e.path;
+    if (rel.startsWith('.git') ||
+        rel.startsWith('.dart_tool') ||
+        rel.startsWith('build') ||
+        rel.startsWith('android/.gradle') ||
+        rel.startsWith('linux/flutter/ephemeral')) {
       continue;
     }
-
-    await File(path).writeAsString(mutated, flush: true);
-
-    final result = await Process.run('flutter', ['test'], workingDirectory: '.');
-    final caught = result.exitCode != 0;
-    results[m] = caught ? 'killed' : 'SURVIVED';
-    if (caught) {
-      killed++;
-      print('KILLED');
-    } else {
-      survived++;
-      print('SURVIVED ← GAP IN TESTS');
-    }
-
-    // Restore the original.
-    await File(path).writeAsString(original, flush: true);
-  }
-
-  // ----------------------
-  // REPORT
-  // ----------------------
-  print('\n${'=' * 70}');
-  print('MUTATION CAMPAIGN REPORT');
-  print('=' * 70);
-
-  final applied = killed + survived;
-  final score = applied == 0 ? 0.0 : (killed / applied) * 100;
-
-  print('Applied:  $applied / ${mutations.length}');
-  print('Killed:   $killed');
-  print('Survived: $survived');
-  print('Skipped:  $skipped');
-  print('Kill score: ${score.toStringAsFixed(1)}%');
-  print('');
-
-  // Group by group
-  final byGroup = <String, List<Mutation>>{};
-  for (final m in mutations) {
-    byGroup.putIfAbsent(m.group, () => []).add(m);
-  }
-
-  print('BY GROUP:');
-  for (final entry in byGroup.entries) {
-    final groupKilled = entry.value.where((m) => results[m] == 'killed').length;
-    final groupSurvived = entry.value.where((m) => results[m] == 'SURVIVED').length;
-    final groupSkipped = entry.value.where((m) => results[m] == 'SKIPPED').length;
-    print('  ${entry.key}: $groupKilled/${entry.value.length} killed'
-        '${groupSurvived > 0 ? " ($groupSurvived SURVIVED)" : ""}'
-        '${groupSkipped > 0 ? " ($groupSkipped skipped)" : ""}');
-  }
-
-  // Survivors list — this is the action list
-  final survivors = mutations.where((m) => results[m] == 'SURVIVED').toList();
-  if (survivors.isNotEmpty) {
-    print('\nSURVIVING MUTANTS (write tests to kill them):');
-    for (final m in survivors) {
-      print('  ${m.id} [${m.group}] — ${m.invariant}');
-      print('      file: ${m.file}');
-      print('      mutation: ${m.search.length > 60 ? '${m.search.substring(0, 60)}…' : m.search}');
-      print('');
+    final target = File('${dest.path}/$rel');
+    if (e is File) {
+      await target.parent.create(recursive: true);
+      await e.copy(target.path);
     }
   }
+}
 
-  print('');
-  if (score < 90) {
-    print('KILL SCORE < 90% — campaign FAILED (v5 E23).');
-    print('   Write new tests for each surviving mutant above, then re-run.');
-    exit(2);
-  } else {
-    print('KILL SCORE >= 90% — campaign PASSED (v5 E23).');
-    print('   Record this run in status.md and commit the report.');
-    exit(0);
+/// Return paths of any .dart files under [root] containing a live MUTATION marker.
+Future<List<String>> _findMutationMarkers(String root) async {
+  final hits = <String>[];
+  await for (final e in Directory(root).list(recursive: true)) {
+    if (e is File && e.path.endsWith('.dart')) {
+      final content = await e.readAsString();
+      if (content.contains('MUTATION')) hits.add(e.path);
+    }
   }
+  return hits;
 }

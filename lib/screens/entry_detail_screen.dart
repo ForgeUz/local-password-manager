@@ -57,6 +57,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
 
     if (credId != null) {
       await widget.service.attachPasskey(widget.entryId, credId);
+      if (!mounted) return;
       setState(() {
         _passkeyAttached = true;
         _creatingPasskey = false;
@@ -64,6 +65,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Passkey attached.')));
     } else {
+      if (!mounted) return;
       setState(() => _creatingPasskey = false);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Passkey creation cancelled or unsupported.')));

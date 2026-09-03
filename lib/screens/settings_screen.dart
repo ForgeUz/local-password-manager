@@ -91,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final bytes = await _filePicker.invokeMethod<Uint8List>('pickImportPath');
+      if (!mounted) return;
       if (bytes == null) {
         setState(() => _importStatus = 'Import cancelled.');
         return;
@@ -173,8 +174,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final shares =
           await widget.service.generateShares(mp, n: _shamirN, k: _shamirK);
+      if (!context.mounted) return;
       setState(() => _shares = shares);
     } catch (_) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Share generation failed: wrong MP.')),
       );

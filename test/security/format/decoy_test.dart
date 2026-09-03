@@ -1,4 +1,4 @@
-// File: test/security/format/test_decoy.dart
+// File: test/security/format/decoy_test.dart
 // Intent: security.md gate 2.2 — Decoy vault verification.
 // Invariants:
 // - Decoy vault uses completely different key derivation path.
@@ -50,7 +50,6 @@ void main() {
 
     test('primary password cannot open decoy vault', () async {
       final crypto = VaultCryptoV4();
-      final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
         '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,

@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vault_crypto/src/crypto/native/memory_dump.dart';
 import 'package:vault_crypto/src/crypto/native/secure_buffer.dart';
+import 'package:vault_crypto/src/crypto/v4/header.dart';
 import 'package:vault_crypto/src/crypto/v4/vault_crypto_v4.dart';
 
 SecureBuffer _mp(String s) {
@@ -23,7 +24,8 @@ SecureBuffer _mp(String s) {
 
 void main() {
   group('Gate 24.1 Lock During Cryptographic Operation', () {
-    test('lock during entry decryption: completes, no key material in memory', () async {
+    test('lock during entry decryption: completes, no key material in memory',
+        () async {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final blob = await crypto.lockVault(json, _mp('mp'));
@@ -31,19 +33,33 @@ void main() {
       // Unlock (access) then immediately lock (dispose VRK).
       final session = await crypto.unlockSession(blob, _mp('mp'));
       // Lock: dispose the VRK SecureBuffer (zeroes native memory).
-      final marker = session.vrk.readBytes();
+      // Copy the marker BEFORE dispose: readBytes() returns the live backing,
+      // so a reference would be zeroed along with the region and the scan would
+      // trivially match all-zeros.
+      final marker = Uint8List.fromList(session.vrk.readBytes());
       session.vrk.dispose();
       // After lock, the VRK region is zeroed.
       expect(MemoryDumpVerifier.scanFor(session.vrk, marker), isFalse);
     });
 
-    test('lock during vault save: no partial writes, round-trip intact', () async {
+    test('lock during vault save: no partial writes, round-trip intact',
+        () async {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final blob = await crypto.lockVault(json, _mp('mp'));
       // Re-lock (save) then unlock again — vault remains valid.
       final session = await crypto.unlockSession(blob, _mp('mp'));
-      final relocked = await crypto.relock(session.vrk.readBytes(), session.entries);
+      // relock preserves the salt + KDF params from the incoming blob; the held
+      // VRK was derived from that salt, so it must be passed through.
+      final header = V4Header.parse(blob);
+      final relocked = await crypto.relock(
+        session.vrk.readBytes(),
+        session.entries,
+        salt: header.salt,
+        kdfMemory: header.kdfMemory,
+        kdfIterations: header.kdfIterations,
+        kdfParallelism: header.kdfParallelism,
+      );
       session.vrk.dispose();
       // The relocked blob still opens with the MP.
       final result = await crypto.unlockVault(relocked, _mp('mp'));

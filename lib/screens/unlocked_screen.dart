@@ -93,8 +93,10 @@ class _UnlockedScreenState extends State<UnlockedScreen> {
                   url: titleCtrl.text.toLowerCase(),
                 ))
                     .then((_) {
+                  if (!ctx.mounted) return;
                   Navigator.pop(ctx);
                 }).catchError((e) {
+                  if (!ctx.mounted) return;
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     SnackBar(content: Text('Save failed: $e')),
                   );

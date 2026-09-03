@@ -63,8 +63,9 @@ class KeyHierarchy {
   /// Unwrap a DEK from VRK-wrapped ciphertext.
   /// Throws StateError if ciphertext too short or GCM tag fails.
   static Uint8List unwrapDek(Uint8List vrk, Uint8List wrapped) {
-    if (wrapped.length < _nonceSize + 16)
+    if (wrapped.length < _nonceSize + 16) {
       throw StateError('wrapped DEK too short');
+    }
     final nonce = wrapped.sublist(0, _nonceSize);
     final ct = wrapped.sublist(_nonceSize);
     return AesGcm.decrypt(vrk, nonce, Uint8List(0), ct);

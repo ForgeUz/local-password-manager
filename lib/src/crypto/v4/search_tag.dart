@@ -96,12 +96,16 @@ class SearchTag {
     // Strip scheme
     if (d.startsWith('https://')) {
       d = d.substring(8);
-    } else if (d.startsWith('http://'))
+    } else if (d.startsWith('http://')) {
       d = d.substring(7);
-    else if (d.startsWith('ftp://')) d = d.substring(6);
+    } else if (d.startsWith('ftp://')) {
+      d = d.substring(6);
+    }
 
     // Strip www.
-    if (d.startsWith('www.')) d = d.substring(4);
+    if (d.startsWith('www.')) {
+      d = d.substring(4);
+    }
 
     // Strip trailing slash and path
     final slashIndex = d.indexOf('/');

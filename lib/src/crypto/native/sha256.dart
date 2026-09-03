@@ -1,3 +1,6 @@
+// ignore_for_file: constant_identifier_names
+// Name mirrors libsodium C constant (BYTES).
+
 import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';

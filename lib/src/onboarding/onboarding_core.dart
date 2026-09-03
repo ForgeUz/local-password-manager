@@ -45,12 +45,15 @@ OnboardingState _reduce(OnboardingState state, OnboardingIntent intent) {
     if (state is OnboardingCreateMP) return OnboardingDoctrine();
     if (state is OnboardingDecoyOptIn) return OnboardingCreateMP();
   }
-  if (state is OnboardingWelcome && intent is BeginOnboarding)
+  if (state is OnboardingWelcome && intent is BeginOnboarding) {
     return OnboardingDoctrine();
-  if (state is OnboardingDoctrine && intent is AcceptDoctrine)
+  }
+  if (state is OnboardingDoctrine && intent is AcceptDoctrine) {
     return OnboardingCreateMP();
-  if (state is OnboardingCreateMP && intent is SubmitMP)
+  }
+  if (state is OnboardingCreateMP && intent is SubmitMP) {
     return OnboardingDecoyOptIn();
+  }
   if (state is OnboardingDecoyOptIn) {
     if (intent is SkipDecoy) return OnboardingDone(createDecoy: false);
     if (intent is CreateDecoy) return OnboardingDone(createDecoy: true);

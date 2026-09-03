@@ -5,6 +5,7 @@ import '../errors.dart';
 import '../native/aes_gcm.dart';
 import '../native/argon2id.dart';
 import '../native/secure_buffer.dart';
+import '../native/sha256.dart';
 import '../padding.dart';
 import 'constants.dart';
 import 'duress.dart';
@@ -292,8 +293,7 @@ class VaultCryptoV4 {
 
     // Header MAC (v5 E12): AES-256-GCM with EMPTY plaintext over header-as-AAD.
     // The 16-byte tag IS the header authentication. No ambiguity.
-    final outerTag = AesGcm.encrypt(
-        vrk, Uint8List(12), headerBytes, Uint8List(0)); // MUTATION: wrong nonce
+    final outerTag = AesGcm.encrypt(vrk, nonce, headerBytes, Uint8List(0));
 
     final blob = Uint8List(headerBytes.length + slot2.length + outerTag.length);
     blob.setRange(0, headerBytes.length, headerBytes);
@@ -553,6 +553,9 @@ class VaultCryptoV4 {
         } on UnsupportedFormatError {
           // Slot 2 is noise (deniability disabled) -> duress cannot open.
           throw DuressDecryptError();
+        } on CorruptBlobError {
+          // Malformed slot 2 must not leak which vault state we are in.
+          throw DuressDecryptError();
         }
       } finally {
         // CRITICAL: Zero VRK_duress after use
@@ -565,12 +568,24 @@ class VaultCryptoV4 {
   }
 
   /// Shared: build the session from a derived VRK (primary or duress).
+  ///
+  /// Single-pass: verifies the outer header MAC (wrong VRK fails here), then
+  /// decrypts each entry exactly once while capturing search tags. All
+  /// decryption/parse errors become DecryptionFailedError (no error oracle).
   UnlockSession _decryptSession(
       Uint8List blob, V4Header header, Uint8List vrk) {
     final vrkBuf = SecureBuffer.fromList(vrk);
     // Verify outer tag; wrong VRK fails here.
-    decryptToEntries(blob, vrkBuf.readBytes());
-    // Now read the entry records to capture search tags + decrypt entries.
+    final headerBytes = blob.sublist(0, _headerLength(header));
+    final tag = blob.sublist(blob.length - V4Constants.tagSize);
+    Uint8List decrypted;
+    try {
+      decrypted = AesGcm.decrypt(vrk, header.nonce, headerBytes, tag);
+    } catch (_) {
+      throw DecryptionFailedError();
+    }
+    if (decrypted.isNotEmpty) throw DecryptionFailedError();
+
     final records = header.entries;
     final entries = <V4VaultEntry>[];
     final searchTags = <String, List<Uint8List>>{};
@@ -586,6 +601,9 @@ class VaultCryptoV4 {
         final entry = V4VaultEntry.fromJson(jsonMap);
         entries.add(entry);
         searchTags[entry.id] = rec.searchTags;
+      } catch (_) {
+        // SECURITY: All errors become DecryptionFailedError (no error oracle)
+        throw DecryptionFailedError();
       } finally {
         // CRITICAL: Zero DEK after use
         dek.fillRange(0, dek.length, 0);
@@ -636,15 +654,8 @@ class VaultCryptoV4 {
   }
 
   /// Encode a string entry id into a fixed 16-byte UUID field.
-  /// SECURITY: Uses hash to prevent truncation collisions.
-  static Uint8List _encodeId(String id) {
-    // Use first 16 bytes of UTF-8 encoding, padded with zeros if shorter
-    final bytes = Uint8List.fromList(utf8.encode(id));
-    final out = Uint8List(V4Constants.uuidSize);
-    final n = bytes.length < V4Constants.uuidSize
-        ? bytes.length
-        : V4Constants.uuidSize;
-    out.setRange(0, n, bytes.sublist(0, n));
-    return out;
-  }
+  /// SECURITY: Uses SHA-256 hash to prevent truncation collisions (importCsv
+  /// ids are 17+ chars differing only in the tail; truncation would collide).
+  static Uint8List _encodeId(String id) =>
+      Sha256.hash(utf8.encode(id)).sublist(0, V4Constants.uuidSize);
 }
