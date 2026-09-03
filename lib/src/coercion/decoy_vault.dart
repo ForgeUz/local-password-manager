@@ -37,7 +37,7 @@ class DecoyVault {
     final mk = Argon2id.derive(
       duressMp.readBytes(),
       salt,
-      memory: V4Constants.kdfFloorMemory ~/ 1024,
+      memory: V4Constants.kdfFloorMemory,
       iterations: V4Constants.kdfFloorIterations,
       parallelism: V4Constants.kdfFloorParallelism,
     );
@@ -48,7 +48,7 @@ class DecoyVault {
       vrkDuress,
       entries,
       salt: salt,
-      kdfMemory: V4Constants.kdfFloorMemory ~/ 1024,
+      kdfMemory: V4Constants.kdfFloorMemory,
       kdfIterations: V4Constants.kdfFloorIterations,
       kdfParallelism: V4Constants.kdfFloorParallelism,
     );

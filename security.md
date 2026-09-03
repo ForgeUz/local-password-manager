@@ -1,7 +1,7 @@
 # Vault Crypto Security Verification Plan
 
-**Current Status:** Internal Audit Complete (137/137 Mutations Killed, 329+ Tests, 8 Fuzzers)
-**Last Updated:** V6.5.2
+**Current Status:** Internal Audit Complete (137/137 Mutations Killed, 570 Tests, 8 Fuzzers)
+**Last Updated:** V6.5.3
 
 ## 1. Cryptographic Core Invariants
 

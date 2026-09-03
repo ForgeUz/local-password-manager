@@ -36,7 +36,8 @@ void main() {
       );
     });
 
-    test('no information leaked: wrong password vs corrupt vault same error', () async {
+    test('no information leaked: wrong password vs corrupt vault same error',
+        () async {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final blob = await crypto.lockVault(json, _mp('right'));

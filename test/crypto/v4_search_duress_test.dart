@@ -23,10 +23,14 @@ void main() {
       // prefixes of length 3..10 (github.com = 10 chars)
       expect(tags.length, 8);
       // the full-domain tag must equal the single-domain tag
-      expect(ConstantTime.equals(tags.last, SearchTag.compute(vrk, 'github.com')), isTrue);
+      expect(
+          ConstantTime.equals(tags.last, SearchTag.compute(vrk, 'github.com')),
+          isTrue);
     });
 
-    test('tag count is bucket-padded (E13): domain length leaks only the bucket', () {
+    test(
+        'tag count is bucket-padded (E13): domain length leaks only the bucket',
+        () {
       final vrk = Uint8List.fromList(List.generate(32, (i) => i));
       // 'a.com' (5 chars) -> 3 prefix tags; 'verylongdomain.example.com' (24) -> 22.
       // Both pad to a bucket size (4 and 32) so exact length is not leaked.

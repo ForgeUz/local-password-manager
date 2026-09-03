@@ -38,7 +38,8 @@ void main() {
 
     test('vault with 1 entry: all operations work', () async {
       final crypto = VaultCryptoV4();
-      final json = Uint8List.fromList('{"entries":[${_entryJson(1)}]}'.codeUnits);
+      final json =
+          Uint8List.fromList('{"entries":[${_entryJson(1)}]}'.codeUnits);
       final blob = await crypto.lockVault(json, _mp('mp'));
       final result = await crypto.unlockVault(blob, _mp('mp'));
       expect(result, equals(json));
@@ -73,7 +74,8 @@ void main() {
       final crypto = VaultCryptoV4();
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);

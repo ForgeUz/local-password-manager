@@ -26,7 +26,7 @@ void main() {
     final controller = NoiseController(platform: mock);
 
     final success = await controller.pair('123456', 'peer_abc');
-    
+
     expect(success, isTrue);
     expect(mock.lastPin, '123456');
     expect(mock.lastPeerId, 'peer_abc');
@@ -37,7 +37,7 @@ void main() {
     final controller = NoiseController(platform: mock);
 
     final success = await controller.pair('000000', 'peer_xyz');
-    
+
     expect(success, isFalse);
   });
 }

@@ -46,8 +46,10 @@ void main() {
     test('same input -> identical output (determinism)', () {
       final pw = _bytes(16, 7);
       final salt = _bytes(16, 9);
-      final a = Argon2id.derive(pw, salt, memory: 65536, iterations: 3, parallelism: 1);
-      final b = Argon2id.derive(pw, salt, memory: 65536, iterations: 3, parallelism: 1);
+      final a = Argon2id.derive(pw, salt,
+          memory: 65536, iterations: 3, parallelism: 1);
+      final b = Argon2id.derive(pw, salt,
+          memory: 65536, iterations: 3, parallelism: 1);
       expect(a, equals(b));
     });
 
@@ -55,8 +57,10 @@ void main() {
       final pw = _bytes(16, 7);
       final s1 = _bytes(16, 9);
       final s2 = _bytes(16, 10);
-      final a = Argon2id.derive(pw, s1, memory: 65536, iterations: 3, parallelism: 1);
-      final b = Argon2id.derive(pw, s2, memory: 65536, iterations: 3, parallelism: 1);
+      final a =
+          Argon2id.derive(pw, s1, memory: 65536, iterations: 3, parallelism: 1);
+      final b =
+          Argon2id.derive(pw, s2, memory: 65536, iterations: 3, parallelism: 1);
       expect(a, isNot(equals(b)));
     });
 
@@ -64,8 +68,10 @@ void main() {
       final p1 = _bytes(16, 7);
       final p2 = _bytes(16, 8);
       final salt = _bytes(16, 9);
-      final a = Argon2id.derive(p1, salt, memory: 65536, iterations: 3, parallelism: 1);
-      final b = Argon2id.derive(p2, salt, memory: 65536, iterations: 3, parallelism: 1);
+      final a = Argon2id.derive(p1, salt,
+          memory: 65536, iterations: 3, parallelism: 1);
+      final b = Argon2id.derive(p2, salt,
+          memory: 65536, iterations: 3, parallelism: 1);
       expect(a, isNot(equals(b)));
     });
 
@@ -77,8 +83,10 @@ void main() {
       final pw = _bytes(16, 3);
       final s1 = _bytes(16, 4);
       final s2 = _bytes(16, 5);
-      final a = Argon2id.derive(pw, s1, memory: 65536, iterations: 3, parallelism: 1);
-      final b = Argon2id.derive(pw, s2, memory: 65536, iterations: 3, parallelism: 1);
+      final a =
+          Argon2id.derive(pw, s1, memory: 65536, iterations: 3, parallelism: 1);
+      final b =
+          Argon2id.derive(pw, s2, memory: 65536, iterations: 3, parallelism: 1);
       expect(a, isNot(equals(b)));
     });
 

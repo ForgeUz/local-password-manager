@@ -31,7 +31,8 @@ void main() {
       final triage = const SeccompDenylist(killSwitch: true);
       expect(triage.installed, isFalse);
       expect(triage.isDenied('ptrace'), isFalse);
-      expect(triage.isAllowed('ptrace'), isTrue); // filter absent -> everything allowed
+      expect(triage.isAllowed('ptrace'),
+          isTrue); // filter absent -> everything allowed
     });
   });
 }

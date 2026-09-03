@@ -21,9 +21,8 @@ class ReferenceHkdf {
   /// RFC 5869 extract: PRK = HMAC-SHA256(salt, IKM).
   static Uint8List extract(Uint8List ikm, Uint8List salt) {
     // Salt is padded to hash length (32) with zeros if shorter.
-    final paddedSalt = salt.length >= 32
-        ? salt
-        : Uint8List(32)..setRange(0, salt.length, salt);
+    final paddedSalt = salt.length >= 32 ? salt : Uint8List(32)
+      ..setRange(0, salt.length, salt);
     return Uint8List.fromList(
       Hmac(sha256, paddedSalt).convert(ikm).bytes,
     );
@@ -50,7 +49,8 @@ class ReferenceHkdf {
   }
 
   /// Full HKDF derive (extract + expand).
-  static Uint8List derive(Uint8List ikm, Uint8List salt, Uint8List info, int outLen) {
+  static Uint8List derive(
+      Uint8List ikm, Uint8List salt, Uint8List info, int outLen) {
     final prk = extract(ikm, salt);
     return expand(prk, info, outLen);
   }

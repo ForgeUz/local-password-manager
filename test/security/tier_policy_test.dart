@@ -176,8 +176,10 @@ void main() {
   group('Tier Ordinal Ordering (Property-Based)', () {
     test('standard < sensitive < critical (index ordering)', () {
       // MUTATION KILLER: if enum order changes, index comparisons break.
-      expect(SecurityTier.standard.index, lessThan(SecurityTier.sensitive.index));
-      expect(SecurityTier.sensitive.index, lessThan(SecurityTier.critical.index));
+      expect(
+          SecurityTier.standard.index, lessThan(SecurityTier.sensitive.index));
+      expect(
+          SecurityTier.sensitive.index, lessThan(SecurityTier.critical.index));
     });
 
     test('all tiers are covered (exhaustive)', () {

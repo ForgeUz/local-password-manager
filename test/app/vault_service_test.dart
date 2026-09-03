@@ -106,7 +106,8 @@ void main() {
     expect(store.currentState, isA<Locked>());
   });
 
-  test('search("git") returns the github entry id without full decrypt', () async {
+  test('search("git") returns the github entry id without full decrypt',
+      () async {
     await service.init();
     final mp = createMP('right');
     await service.createVault(mp);
@@ -207,7 +208,8 @@ void main() {
     expect(service.hasVrk, isFalse);
   });
 
-  test('wrong password that also fails duress keeps locked (not duress)', () async {
+  test('wrong password that also fails duress keeps locked (not duress)',
+      () async {
     await service.init();
     final mp = createMP('right');
     await service.createVault(mp);
@@ -295,7 +297,8 @@ void main() {
     expect(store.currentState, isA<Unlocked>());
   });
 
-  test('generateShares returns N share strings; parse + unlock works', () async {
+  test('generateShares returns N share strings; parse + unlock works',
+      () async {
     await service.init();
     final mp = createMP('right');
     await service.createVault(mp);
@@ -327,7 +330,7 @@ void main() {
     final mk = Argon2id.derive(
       Uint8List.fromList('right'.codeUnits),
       header.salt,
-      memory: V4Constants.kdfFloorMemory ~/ 1024,
+      memory: V4Constants.kdfFloorMemory,
       iterations: V4Constants.kdfFloorIterations,
       parallelism: V4Constants.kdfFloorParallelism,
     );
@@ -374,7 +377,8 @@ void main() {
     expect(service2.getEntry('e1'), isNotNull);
   });
 
-  test('Two-Bunker: MP1 opens Primary, MP2 opens ONLY Decoy (isolated)', () async {
+  test('Two-Bunker: MP1 opens Primary, MP2 opens ONLY Decoy (isolated)',
+      () async {
     await service.init();
     final primaryMp = createMP('primary');
     final duressMp = createMP('duress');
@@ -417,5 +421,51 @@ void main() {
     expect(service.isDuress, isTrue);
     expect(service.getEntry('d1'), isNotNull);
     expect(service.getEntry('p1'), isNull);
+  });
+
+  test('KDF params survive edit round-trips (no floor downgrade brick)',
+      () async {
+    // Regression: relock used to record FLOOR params in the new header even
+    // when the vault was created above the floor. A cold unlock then derived MK
+    // under floor -> wrong VRK -> DecryptionFailedError (vault bricked). This
+    // test simulates a raised-param vault via relock's explicit params, then
+    // verifies an addEntry edit round-trip still unlocks with the MP.
+    await service.init();
+    final mp = createMP('right');
+    await service.createVault(mp);
+    // Capture the held VRK BEFORE lock (lock wipes it).
+    final heldVrk = service.debugVrk;
+
+    // Raise params above the floor by relocking the blob with explicit params.
+    final blob = Uint8List.fromList(
+        await File('${tmp.path}${Platform.pathSeparator}vault.blob')
+            .readAsBytes());
+    final header = V4Header.parse(blob);
+    final raised = await VaultCryptoV4().relock(
+      heldVrk,
+      const [],
+      salt: header.salt,
+      kdfMemory: header.kdfMemory + 1024,
+      kdfIterations: header.kdfIterations + 1,
+      kdfParallelism: header.kdfParallelism,
+    );
+    await File('${tmp.path}${Platform.pathSeparator}vault.blob')
+        .writeAsBytes(raised, flush: true);
+    await service.lock();
+
+    // Unlock under the raised params, then edit (addEntry) and re-unlock.
+    await service.unlock(createMP('right'));
+    await service.addEntry(VaultEntry(
+      id: 'e1',
+      title: 'Entry',
+      username: 'u',
+      password: 'p',
+      url: 'site.com',
+    ));
+    await service.lock();
+
+    // Cold unlock must still succeed (params preserved through the edit).
+    await service.unlock(createMP('right'));
+    expect(service.getEntry('e1'), isNotNull);
   });
 }

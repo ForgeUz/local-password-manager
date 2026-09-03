@@ -46,7 +46,8 @@ void main() {
       }
     });
 
-    test('round-trip: create → serialize → parse → serialize → identical bytes', () {
+    test('round-trip: create → serialize → parse → serialize → identical bytes',
+        () {
       for (var i = 0; i < 50; i++) {
         final h = V4Header.generate(
           kdfMemory: 65536,
@@ -98,7 +99,9 @@ void main() {
       }
     });
 
-    test('generated invalid files (violating model) always throw CorruptBlobError', () {
+    test(
+        'generated invalid files (violating model) always throw CorruptBlobError',
+        () {
       // Invalid magic.
       final badMagic = Uint8List(V4Constants.fixedHeaderSize);
       badMagic.buffer.asByteData().setInt32(0, 0xDEADBEEF, Endian.big);
@@ -108,7 +111,8 @@ void main() {
       final badVersion = Uint8List(V4Constants.fixedHeaderSize);
       badVersion.buffer.asByteData().setInt32(0, V4Constants.magic, Endian.big);
       badVersion[4] = 99;
-      expect(() => V4Header.parse(badVersion), throwsA(isA<VaultCryptoError>()));
+      expect(
+          () => V4Header.parse(badVersion), throwsA(isA<VaultCryptoError>()));
 
       // Wrong vault_count.
       final badCount = Uint8List(V4Constants.fixedHeaderSize);
@@ -118,7 +122,8 @@ void main() {
       expect(() => V4Header.parse(badCount), throwsA(isA<VaultCryptoError>()));
 
       // Truncated header.
-      expect(() => V4Header.parse(Uint8List(10)), throwsA(isA<VaultCryptoError>()));
+      expect(() => V4Header.parse(Uint8List(10)),
+          throwsA(isA<VaultCryptoError>()));
     });
   });
 }

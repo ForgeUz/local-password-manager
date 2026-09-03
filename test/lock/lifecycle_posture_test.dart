@@ -46,7 +46,8 @@ void main() {
     test('zero timeout locks immediately (lockdown posture)', () {
       final service = FakeService();
       final timer = PostureTimer(service);
-      timer.onUnlock(canaryTriggered: true, networkRecognized: true, recentFailures: 0);
+      timer.onUnlock(
+          canaryTriggered: true, networkRecognized: true, recentFailures: 0);
       expect(service.lockCount, 1);
       timer.dispose();
     });
@@ -55,7 +56,8 @@ void main() {
       final service = FakeService();
       final timer = PostureTimer(service);
       // high posture -> 30s timeout; no immediate lock.
-      timer.onUnlock(canaryTriggered: false, networkRecognized: false, recentFailures: 0);
+      timer.onUnlock(
+          canaryTriggered: false, networkRecognized: false, recentFailures: 0);
       expect(service.lockCount, 0);
       timer.dispose();
       expect(service.lockCount, 0);

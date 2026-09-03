@@ -10,7 +10,7 @@
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 315+ (all passing) |
+| Total tests | 570 (all passing) |
 | Mutation kill score | 100% (133/133: TCB + V6.5 + vault data + passkey + onboarding + shamir) |
 | Security gate suites | security.md (1-20) + security2.md (21-32) — DONE |
 | Fuzzing | 6 fuzzers, 0 crashes |
@@ -90,8 +90,8 @@ The channel is registered in `desktop_plugin_register` with the same `FlStandard
 
 ```bash
 flutter build linux --debug  -> Built build/linux/x64/debug/bundle/vault_crypto
-flutter test                 -> 315+ passed
-flutter analyze              -> 1 pre-existing flutter_lints include warning only
+flutter test                 -> 570 passed
+flutter analyze              -> 0 issues
 ```
 
 ---

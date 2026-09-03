@@ -53,7 +53,8 @@ void main() {
       controller.dispose();
     });
 
-    test('clipboard cleared on vault lock (dispose cancels + clears)', () async {
+    test('clipboard cleared on vault lock (dispose cancels + clears)',
+        () async {
       final mock = MockClipboardPlatform();
       final controller = ClipboardController(
         platform: mock,

@@ -33,7 +33,8 @@ void main() {
 
       // Offline peer B: no handshake, no local code, cancellation pending.
       final decision = ShredDeferral.decide(
-        hasUnprocessedCancellation: ShredMessages.hasUnprocessedCancellation(seen, 'e1'),
+        hasUnprocessedCancellation:
+            ShredMessages.hasUnprocessedCancellation(seen, 'e1'),
         handshakeOk: false,
         localCodeEntered: false,
       );
@@ -49,7 +50,8 @@ void main() {
       expect(afterHandshake, ShredDecision.execute);
     });
 
-    test('local cancellation-code entry also cancels (no handshake needed)', () {
+    test('local cancellation-code entry also cancels (no handshake needed)',
+        () {
       final decision = ShredDeferral.decide(
         hasUnprocessedCancellation: false,
         handshakeOk: false,
@@ -73,11 +75,15 @@ void main() {
   });
 
   group('v5 E7 snapshot/conflict purge on shred', () {
-    test('snapshots/ and conflicts/ purged of shredded entry; restore = post-shred', () async {
+    test(
+        'snapshots/ and conflicts/ purged of shredded entry; restore = post-shred',
+        () async {
       final dir = Directory.systemTemp.createTempSync('vault_e7_');
       addTearDown(() => dir.deleteSync(recursive: true));
-      final snapshots = Directory('${dir.path}${Platform.pathSeparator}snapshots');
-      final conflicts = Directory('${dir.path}${Platform.pathSeparator}conflicts');
+      final snapshots =
+          Directory('${dir.path}${Platform.pathSeparator}snapshots');
+      final conflicts =
+          Directory('${dir.path}${Platform.pathSeparator}conflicts');
       snapshots.createSync(recursive: true);
       conflicts.createSync(recursive: true);
 
@@ -86,7 +92,8 @@ void main() {
       final conflict = Uint8List.fromList('conflict-e1'.codeUnits);
       await File('${snapshots.path}${Platform.pathSeparator}vault.v1.blob')
           .writeAsBytes(preShred, flush: true);
-      await File('${conflicts.path}${Platform.pathSeparator}conflict_e1_123.blob')
+      await File(
+              '${conflicts.path}${Platform.pathSeparator}conflict_e1_123.blob')
           .writeAsBytes(conflict, flush: true);
 
       // Post-shred blob (e1 removed).

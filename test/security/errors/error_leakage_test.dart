@@ -26,7 +26,8 @@ void main() {
   group('Gate 12 Error Handling & Information Leakage', () {
     test('all parsing errors -> CorruptBlobError (uniform)', () {
       // Truncated header.
-      expect(() => V4Header.parse(Uint8List(0)), throwsA(isA<VaultCryptoError>()));
+      expect(
+          () => V4Header.parse(Uint8List(0)), throwsA(isA<VaultCryptoError>()));
       // Invalid magic.
       final bad = Uint8List(44);
       bad.buffer.asByteData().setInt32(0, 0xDEADBEEF, Endian.big);
@@ -56,7 +57,8 @@ void main() {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList(
         '{"entries":[{"id":"secret-entry-42","title":"Bank","username":"u",'
-        '"password":"p","url":"bank.com","domain":"bank.com","tier":2}]}'.codeUnits,
+                '"password":"p","url":"bank.com","domain":"bank.com","tier":2}]}'
+            .codeUnits,
       );
       final blob = await crypto.lockVault(json, _mp('right'));
       try {
@@ -69,7 +71,8 @@ void main() {
       }
     });
 
-    test('error messages do not differ based on WHERE decryption failed', () async {
+    test('error messages do not differ based on WHERE decryption failed',
+        () async {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final blob = await crypto.lockVault(json, _mp('right'));

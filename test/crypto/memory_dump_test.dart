@@ -9,7 +9,8 @@ import 'package:vault_crypto/src/crypto/native/secure_buffer.dart';
 void main() {
   group('MemoryDumpVerifier', () {
     test('no residual plaintext in native region after dispose', () {
-      final marker = Uint8List.fromList(List.generate(32, (i) => (0xA0 + i) & 0xFF));
+      final marker =
+          Uint8List.fromList(List.generate(32, (i) => (0xA0 + i) & 0xFF));
       final buf = SecureBuffer.alloc(marker.length);
       buf.writeBytes(marker);
       // marker present in the native region before dispose (sanity)

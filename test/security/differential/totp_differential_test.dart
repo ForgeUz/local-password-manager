@@ -22,8 +22,8 @@ final Uint8List _rfcSecretSha1 =
     Uint8List.fromList(utf8.encode('12345678901234567890'));
 final Uint8List _rfcSecretSha256 =
     Uint8List.fromList(utf8.encode('12345678901234567890123456789012'));
-final Uint8List _rfcSecretSha512 =
-    Uint8List.fromList(utf8.encode('1234567890123456789012345678901234567890123456789012345678901234'));
+final Uint8List _rfcSecretSha512 = Uint8List.fromList(utf8.encode(
+    '1234567890123456789012345678901234567890123456789012345678901234'));
 
 TotpConfig _config({
   TotpAlgorithm algo = TotpAlgorithm.sha1,
@@ -58,7 +58,8 @@ void main() {
       };
       for (final e in vectors.entries) {
         final config = _config();
-        expect(TotpGenerator.generate(config: config, timestamp: e.key), e.value,
+        expect(
+            TotpGenerator.generate(config: config, timestamp: e.key), e.value,
             reason: 'SHA1 time=${e.key}');
         config.secret.dispose();
       }
@@ -75,7 +76,8 @@ void main() {
       };
       for (final e in vectors.entries) {
         final config = _config(algo: TotpAlgorithm.sha256, digits: 8);
-        expect(TotpGenerator.generate(config: config, timestamp: e.key), e.value,
+        expect(
+            TotpGenerator.generate(config: config, timestamp: e.key), e.value,
             reason: 'SHA256 time=${e.key}');
         config.secret.dispose();
       }
@@ -92,7 +94,8 @@ void main() {
       };
       for (final e in vectors.entries) {
         final config = _config(algo: TotpAlgorithm.sha512, digits: 8);
-        expect(TotpGenerator.generate(config: config, timestamp: e.key), e.value,
+        expect(
+            TotpGenerator.generate(config: config, timestamp: e.key), e.value,
             reason: 'SHA512 time=${e.key}');
         config.secret.dispose();
       }

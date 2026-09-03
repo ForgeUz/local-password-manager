@@ -12,8 +12,12 @@ void main() {
   group('M121: VaultEntry serializes passkeyCredentialId', () {
     test('toJson includes passkeyCredentialId when present', () {
       final entry = VaultEntry(
-        id: '1', title: 'GitHub', username: 'user', password: 'pass',
-        url: 'github.com', passkeyCredentialId: 'base64url_cred_id',
+        id: '1',
+        title: 'GitHub',
+        username: 'user',
+        password: 'pass',
+        url: 'github.com',
+        passkeyCredentialId: 'base64url_cred_id',
       );
       final json = entry.toJson();
       expect(json['passkeyCredentialId'], equals('base64url_cred_id'));
@@ -21,7 +25,11 @@ void main() {
 
     test('toJson includes null passkeyCredentialId when absent', () {
       final entry = VaultEntry(
-        id: '2', title: 'Reddit', username: 'user2', password: 'pass2', url: 'reddit.com',
+        id: '2',
+        title: 'Reddit',
+        username: 'user2',
+        password: 'pass2',
+        url: 'reddit.com',
       );
       final json = entry.toJson();
       expect(json.containsKey('passkeyCredentialId'), isTrue);
@@ -32,8 +40,11 @@ void main() {
   group('M122: VaultEntry parses legacy V4 blobs safely', () {
     test('fromJson handles missing passkeyCredentialId key', () {
       final legacyJson = {
-        'id': '3', 'title': 'Netflix', 'username': 'user3',
-        'password': 'pass3', 'url': 'netflix.com',
+        'id': '3',
+        'title': 'Netflix',
+        'username': 'user3',
+        'password': 'pass3',
+        'url': 'netflix.com',
       };
       final entry = VaultEntry.fromJson(legacyJson);
       expect(entry.id, equals('3'));
@@ -44,15 +55,20 @@ void main() {
   group('M123: VaultData round-trips entries correctly', () {
     test('toJsonBytes and fromJsonBytes preserve all entries', () {
       final entries = [
-        VaultEntry(id: '1', title: 'A', username: 'u', password: 'p', url: 'a.com'),
         VaultEntry(
-          id: '2', title: 'B', username: 'u', password: 'p', url: 'b.com',
+            id: '1', title: 'A', username: 'u', password: 'p', url: 'a.com'),
+        VaultEntry(
+          id: '2',
+          title: 'B',
+          username: 'u',
+          password: 'p',
+          url: 'b.com',
           passkeyCredentialId: 'cred_2',
         ),
       ];
       final data = VaultData(entries: entries);
       final bytes = data.toJsonBytes();
-      
+
       final restored = VaultData.fromJsonBytes(bytes);
       expect(restored.entries.length, equals(2));
       expect(restored.entries[0].passkeyCredentialId, isNull);

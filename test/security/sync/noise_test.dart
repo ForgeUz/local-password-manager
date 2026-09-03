@@ -88,7 +88,8 @@ void main() {
       expect(during.status, PairStatus.cooldown);
     });
 
-    test('TOFU: first connection pins key, subsequent uses pinned key', () async {
+    test('TOFU: first connection pins key, subsequent uses pinned key',
+        () async {
       final now = DateTime.now();
       final s = NoiseSession(MockTransport('123456'), now: () => now);
       final st = await s.pair('123456');

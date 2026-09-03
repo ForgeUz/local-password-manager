@@ -31,9 +31,11 @@ void main() {
       expect(CancellationCode.verify('00000000', stored), isFalse);
       expect(CancellationCode.verify('11111111', stored), isFalse);
       // 3rd wrong attempt -> locked.
-      expect(_throws(() => CancellationCode.verify('22222222', stored)), isTrue);
+      expect(
+          _throws(() => CancellationCode.verify('22222222', stored)), isTrue);
       // Even the correct code is now rejected (locked).
-      expect(_throws(() => CancellationCode.verify('12345678', stored)), isTrue);
+      expect(
+          _throws(() => CancellationCode.verify('12345678', stored)), isTrue);
     });
   });
 
@@ -65,7 +67,8 @@ void main() {
 
       // 1 surviving share < K=2 -> unrecoverable.
       expect(surviving, 1);
-      expect(GroupShred.isUnrecoverable(survivingShares: surviving, k: 2), isTrue);
+      expect(
+          GroupShred.isUnrecoverable(survivingShares: surviving, k: 2), isTrue);
       // Reconstruction from the single surviving share cannot recover the DEK.
       final recovered = ShamirKit.reconstruct(shares);
       expect(recovered, isNot(equals(dek)));
@@ -83,7 +86,8 @@ void main() {
       final surviving = GroupShred.destroyShare(
           shares: shares, deviceId: 'A', deviceShares: deviceShares);
       expect(surviving, 2);
-      expect(GroupShred.isUnrecoverable(survivingShares: surviving, k: 2), isFalse);
+      expect(GroupShred.isUnrecoverable(survivingShares: surviving, k: 2),
+          isFalse);
     });
   });
 }

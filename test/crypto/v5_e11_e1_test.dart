@@ -29,9 +29,11 @@ void main() {
       final downgradeTs = 1000000;
       final signed = Cooldown.sign(deviceKey, downgradeTs);
       // Cooldown not elapsed -> denied.
-      expect(Cooldown.enforce(deviceKey, signed, downgradeTs + 1000, 5000), isFalse);
+      expect(Cooldown.enforce(deviceKey, signed, downgradeTs + 1000, 5000),
+          isFalse);
       // Cooldown elapsed -> allowed.
-      expect(Cooldown.enforce(deviceKey, signed, downgradeTs + 6000, 5000), isTrue);
+      expect(Cooldown.enforce(deviceKey, signed, downgradeTs + 6000, 5000),
+          isTrue);
       // Tampered signature -> rejected (rolled-back timestamp).
       final tampered = Uint8List.fromList(signed);
       tampered[0] = tampered[0] ^ 0x01;
@@ -43,7 +45,8 @@ void main() {
   });
 
   group('v5 E1 liveness tokens', () {
-    test('unlock emits signed token; epoch increments; forged/newer rejected', () {
+    test('unlock emits signed token; epoch increments; forged/newer rejected',
+        () {
       final vrk = Uint8List.fromList(List.generate(32, (i) => i));
       // Unlock 1: epoch 1.
       final t1 = Liveness.emit(vrk, 1, 1000);

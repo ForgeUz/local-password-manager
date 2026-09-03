@@ -44,10 +44,38 @@ void main() {
       final key = Uint8List.fromList(List.generate(32, (_) => 0xaa));
       final data = Uint8List.fromList(List.generate(50, (_) => 0xdd));
       final expected = Uint8List.fromList([
-        0xcd, 0xcb, 0x12, 0x20, 0xd1, 0xec, 0xcc, 0xea,
-        0x91, 0xe5, 0x3a, 0xba, 0x30, 0x92, 0xf9, 0x62,
-        0xe5, 0x49, 0xfe, 0x6c, 0xe9, 0xed, 0x7f, 0xdc,
-        0x43, 0x19, 0x1f, 0xbd, 0xe4, 0x5c, 0x30, 0xb0,
+        0xcd,
+        0xcb,
+        0x12,
+        0x20,
+        0xd1,
+        0xec,
+        0xcc,
+        0xea,
+        0x91,
+        0xe5,
+        0x3a,
+        0xba,
+        0x30,
+        0x92,
+        0xf9,
+        0x62,
+        0xe5,
+        0x49,
+        0xfe,
+        0x6c,
+        0xe9,
+        0xed,
+        0x7f,
+        0xdc,
+        0x43,
+        0x19,
+        0x1f,
+        0xbd,
+        0xe4,
+        0x5c,
+        0x30,
+        0xb0,
       ]);
       final actual = HmacSha256.compute(key, data);
       expect(ConstantTime.equals(actual, expected), isTrue);
@@ -67,7 +95,7 @@ void main() {
 
     test('TOTP: RFC 6238 SHA1 test vector', () {
       final secret = SecureBuffer.fromList(
-        Uint8List.fromList(utf8.encode('12345678901234567890')));
+          Uint8List.fromList(utf8.encode('12345678901234567890')));
       final config = TotpConfig(
         issuer: 'Test',
         accountName: 'test@test.com',
@@ -84,7 +112,7 @@ void main() {
     test('TOTP: RFC 6238 SHA256 test vector', () {
       // RFC 6238 uses a 32-byte secret for SHA256.
       final secret = SecureBuffer.fromList(
-        Uint8List.fromList(utf8.encode('12345678901234567890123456789012')));
+          Uint8List.fromList(utf8.encode('12345678901234567890123456789012')));
       final config = TotpConfig(
         issuer: 'Test',
         accountName: 'test@test.com',
@@ -100,8 +128,8 @@ void main() {
 
     test('TOTP: RFC 6238 SHA512 test vector', () {
       // RFC 6238 uses a 64-byte secret for SHA512.
-      final secret = SecureBuffer.fromList(
-        Uint8List.fromList(utf8.encode('1234567890123456789012345678901234567890123456789012345678901234')));
+      final secret = SecureBuffer.fromList(Uint8List.fromList(utf8.encode(
+          '1234567890123456789012345678901234567890123456789012345678901234')));
       final config = TotpConfig(
         issuer: 'Test',
         accountName: 'test@test.com',
@@ -119,7 +147,8 @@ void main() {
       final secret = Uint8List.fromList(List.generate(32, (i) => i));
       final shares = ShamirKit.split(secret, n: 5, k: 3);
       // Any 3 of 5 reconstruct.
-      final recovered = ShamirKit.reconstruct([shares[0], shares[2], shares[4]]);
+      final recovered =
+          ShamirKit.reconstruct([shares[0], shares[2], shares[4]]);
       expect(recovered, equals(secret));
     });
 

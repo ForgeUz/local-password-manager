@@ -21,7 +21,8 @@ void main() {
       }
     });
 
-    test('three consecutive anomalies trigger lock (per-pair gate reached)', () {
+    test('three consecutive anomalies trigger lock (per-pair gate reached)',
+        () {
       final model = BehavioralModel();
       // Train one pair past the per-pair gate (>=8 samples).
       for (var i = 0; i < 12; i++) {

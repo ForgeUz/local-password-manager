@@ -66,7 +66,8 @@ void main() {
     test('different times -> different codes', () {
       final config = _makeConfig();
       final code1 = TotpGenerator.generate(config: config, timestamp: 59);
-      final code2 = TotpGenerator.generate(config: config, timestamp: 1111111109);
+      final code2 =
+          TotpGenerator.generate(config: config, timestamp: 1111111109);
       expect(code1, isNot(equals(code2)));
     });
   });
@@ -208,33 +209,35 @@ void main() {
     });
   });
 
-    test('SHA256 produces correct 8-digit code (RFC 6238)', () {
-      // RFC 6238 requires 32-byte secret for SHA256
-      final secret256 = Uint8List.fromList(utf8.encode('12345678901234567890123456789012'));
-      final config = TotpConfig(
-        issuer: 'Test',
-        accountName: 'test',
-        secret: SecureBuffer.fromList(secret256),
-        digits: 8,
-        algorithm: TotpAlgorithm.sha256,
-      );
-      final code = TotpGenerator.generate(config: config, timestamp: 59);
-      expect(code, equals('46119246'));
-    });
+  test('SHA256 produces correct 8-digit code (RFC 6238)', () {
+    // RFC 6238 requires 32-byte secret for SHA256
+    final secret256 =
+        Uint8List.fromList(utf8.encode('12345678901234567890123456789012'));
+    final config = TotpConfig(
+      issuer: 'Test',
+      accountName: 'test',
+      secret: SecureBuffer.fromList(secret256),
+      digits: 8,
+      algorithm: TotpAlgorithm.sha256,
+    );
+    final code = TotpGenerator.generate(config: config, timestamp: 59);
+    expect(code, equals('46119246'));
+  });
 
-    test('SHA512 produces correct 8-digit code (RFC 6238)', () {
-      // RFC 6238 requires 64-byte secret for SHA512
-      final secret512 = Uint8List.fromList(utf8.encode('1234567890123456789012345678901234567890123456789012345678901234'));
-      final config = TotpConfig(
-        issuer: 'Test',
-        accountName: 'test',
-        secret: SecureBuffer.fromList(secret512),
-        digits: 8,
-        algorithm: TotpAlgorithm.sha512,
-      );
-      final code = TotpGenerator.generate(config: config, timestamp: 59);
-      expect(code, equals('90693936'));
-    });
+  test('SHA512 produces correct 8-digit code (RFC 6238)', () {
+    // RFC 6238 requires 64-byte secret for SHA512
+    final secret512 = Uint8List.fromList(utf8.encode(
+        '1234567890123456789012345678901234567890123456789012345678901234'));
+    final config = TotpConfig(
+      issuer: 'Test',
+      accountName: 'test',
+      secret: SecureBuffer.fromList(secret512),
+      digits: 8,
+      algorithm: TotpAlgorithm.sha512,
+    );
+    final code = TotpGenerator.generate(config: config, timestamp: 59);
+    expect(code, equals('90693936'));
+  });
 
   group('secondsRemaining', () {
     test('at window start -> full period remaining', () {

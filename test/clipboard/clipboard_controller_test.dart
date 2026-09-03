@@ -49,7 +49,7 @@ void main() {
 
     await controller.copy('first');
     await Future.delayed(const Duration(milliseconds: 700));
-    
+
     await controller.copy('second');
     expect(mockPlatform.copiedText, 'second');
     expect(mockPlatform.clearCount, 0);

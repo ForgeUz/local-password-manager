@@ -13,12 +13,13 @@ void main() {
 
     controller.start();
     await Future.delayed(const Duration(milliseconds: 100));
-    
+
     expect(receivedIntent, isA<AutoLock>());
     controller.dispose();
   });
 
-  test('RegisterActivity prevents AutoLock before new timeout expires', () async {
+  test('RegisterActivity prevents AutoLock before new timeout expires',
+      () async {
     LockIntent? receivedIntent;
     final controller = AutoLockController(
       dispatch: (intent) => receivedIntent = intent,
@@ -26,14 +27,14 @@ void main() {
     );
 
     controller.start();
-    
+
     // Activity at 25ms resets timer to fire at 75ms
     await Future.delayed(const Duration(milliseconds: 25));
     controller.registerActivity();
-    
+
     // Check at 60ms (original timer would have fired at 50ms)
     await Future.delayed(const Duration(milliseconds: 35));
-    
+
     expect(receivedIntent, isNull);
     controller.dispose();
   });

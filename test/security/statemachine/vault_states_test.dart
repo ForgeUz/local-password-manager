@@ -16,7 +16,8 @@ import 'vault_state_model.dart';
 
 void main() {
   group('Gate 21.1 Vault State Transitions', () {
-    test('valid lifecycle: LOCKED → UNLOCKING → UNLOCKED → LOCKING → LOCKED', () {
+    test('valid lifecycle: LOCKED → UNLOCKING → UNLOCKED → LOCKING → LOCKED',
+        () {
       final m = VaultStateMachine(VaultState.locked);
       expect(m.apply(VaultEvent.beginUnlock), isTrue);
       expect(m.state, VaultState.unlocking);
@@ -96,7 +97,8 @@ void main() {
       expect(m.state, VaultState.locked);
     });
 
-    test('property-based: 10,000 random sequences never reach invalid state', () {
+    test('property-based: 10,000 random sequences never reach invalid state',
+        () {
       final rng = Random(42);
       final events = VaultEvent.values;
       for (var i = 0; i < 10000; i++) {
@@ -109,7 +111,8 @@ void main() {
           if (applied) {
             // The transition must be in the valid table.
             expect(
-              VALID_TRANSITIONS.any((t) => t.from == before && t.event == event && t.to == m.state),
+              VALID_TRANSITIONS.any((t) =>
+                  t.from == before && t.event == event && t.to == m.state),
               isTrue,
               reason: 'invalid transition $before --$event--> ${m.state}',
             );

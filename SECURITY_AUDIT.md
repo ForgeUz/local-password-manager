@@ -1,6 +1,6 @@
 # Security Audit - Native Memory + Platform Hardening + Extended Mutation Testing (v1.0 pre-release)
 
-**Date:** 2026-08-27  
+**Date:** 2026-09-03
 **Scope:** Dart/Flutter GC overhead + Linux clipboard/Wayland/Hermetic builds + Android Binder transit + FIDO2 Passkeys + Extended mutation campaign (137/137) + Advanced fuzzing.
 
 ---

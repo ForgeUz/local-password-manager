@@ -46,7 +46,8 @@ void main() {
   });
 
   group('TotpKdfBound', () {
-    test('unlock with wrong TOTP fails at GCM (DecryptionFailedError)', () async {
+    test('unlock with wrong TOTP fails at GCM (DecryptionFailedError)',
+        () async {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final mp = createMP('mp');
@@ -55,7 +56,8 @@ void main() {
       final blob = await crypto.lockVault(json, mp, totpBytes: correctTotp);
 
       // Correct TOTP unlocks.
-      final ok = await crypto.unlockSession(blob, createMP('mp'), totpBytes: correctTotp);
+      final ok = await crypto.unlockSession(blob, createMP('mp'),
+          totpBytes: correctTotp);
       ok.vrk.dispose();
       expect(ok.entries, isNotNull);
 
@@ -78,7 +80,8 @@ void main() {
     test('backup codes verify against hashes (single-use)', () {
       final bc = TotpSetup.generateBackupCodes();
       final salt = Uint8List.fromList(List.generate(16, (_) => 7));
-      final hashed = bc.codes.map((c) => TotpSetup.hashBackupCode(c, salt)).toList();
+      final hashed =
+          bc.codes.map((c) => TotpSetup.hashBackupCode(c, salt)).toList();
       expect(TotpSetup.verifyBackupCode(bc.codes.first, hashed, salt), isTrue);
       expect(TotpSetup.verifyBackupCode('0000-0000', hashed, salt), isFalse);
     });

@@ -13,7 +13,8 @@ void main() {
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('conflict_');
-    resolver = ConflictResolver(conflictsDir: Directory('${tmp.path}/conflicts'));
+    resolver =
+        ConflictResolver(conflictsDir: Directory('${tmp.path}/conflicts'));
   });
 
   tearDown(() {
@@ -37,7 +38,10 @@ void main() {
     expect(out.archived, isTrue);
     expect(out.decision, SyncFlag.conflict);
     // conflicts/ dir now has the archived remote version.
-    final files = Directory('${tmp.path}/conflicts').listSync().whereType<File>().toList();
+    final files = Directory('${tmp.path}/conflicts')
+        .listSync()
+        .whereType<File>()
+        .toList();
     expect(files.length, 1);
     expect(Uint8List.fromList(files.first.readAsBytesSync()), remote);
   });
@@ -55,7 +59,10 @@ void main() {
     expect(out.archived, isFalse);
     expect(out.decision, SyncFlag.localWins);
     // No archive file written (dir exists from constructor but is empty).
-    final files = Directory('${tmp.path}/conflicts').listSync().whereType<File>().toList();
+    final files = Directory('${tmp.path}/conflicts')
+        .listSync()
+        .whereType<File>()
+        .toList();
     expect(files, isEmpty);
   });
 }

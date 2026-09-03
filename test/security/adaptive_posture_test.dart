@@ -11,7 +11,9 @@ import 'package:vault_crypto/src/security/adaptive_posture.dart';
 
 void main() {
   group('M134: Canary lockdown priority', () {
-    test('canaryTriggered=true -> lockdown (overrides low failures + known network)', () {
+    test(
+        'canaryTriggered=true -> lockdown (overrides low failures + known network)',
+        () {
       final policy = AdaptivePosture.evaluate(
         canaryTriggered: true,
         networkRecognized: true,

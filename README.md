@@ -38,7 +38,7 @@ A local-first password manager for Linux and Android. No cloud, no server, no te
 
 ## What's New in V6.5 (Mass-User Readiness)
 
-V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. The full suite is 325+ tests, all passing.
+V6.5 adds features required for mass adoption while preserving the zero-cloud doctrine. The full suite is 570 tests, all passing.
 
 ### Security Tiers (Standard / Sensitive / Critical)
 
@@ -108,7 +108,7 @@ Native Android Autofill Framework integration:
 
 ---
 
-## Platform Hardening & Advanced Verification (V6.5.2)
+## Platform Hardening & Advanced Verification (V6.5.3)
 
 ### FIDO2/WebAuthn Passkeys
 
@@ -271,13 +271,13 @@ adb install -r build/app/outputs/flutter-apk/app-release.apk
 ## Tests
 
 ```bash
-flutter test        # 325+ tests (all pass)
-flutter analyze     # 0 errors (remaining items are pre-existing info/warnings)
+flutter test        # 570 tests (all pass)
+flutter analyze     # 0 issues
 dart run tool/mutation_campaign.dart   # mutation kill score (100%, 137/137 applied)
 ```
 
 **Test coverage:**
-- 325+ unit + integration tests (all passing)
+- 570 unit + integration tests (all passing)
 - 137 mutations covering the entire Trusted Computing Base (TCB) + V6.5 + vault data + passkey + onboarding + shamir + adaptive posture
 - 100% mutation kill score (all security invariants verified)
 - Full security gate suites: [`security.md`](security.md) (gates 1-20) and [`security2.md`](security2.md) (gates 21-32)
@@ -358,7 +358,7 @@ dart run tool/verify_mutations.dart   # all 137 mutation search strings present
 
 # 2. Commit
 git add -A
-git commit -m "V6.5.2: Passkeys, Hermetic Builds, Wayland Shortcuts, Typestate Onboarding, 137/137 mutations"
+git commit -m "V6.5.3: Mutation-window remediation, KDF floor fix, 570 tests, 137/137 mutations"
 
 # 3. Tag the pre-audit release
 git tag v1.0.0-pre-audit

@@ -1,7 +1,7 @@
 # Vault Crypto - Implementation Status
 
-**Last updated:** 2026-08-27
-**Current version:** V6.5.2 (Full Verification & Mass-User Readiness)
+**Last updated:** 2026-09-03
+**Current version:** V6.5.3 (Mutation-Window Remediation & KDF Floor Fix)
 
 Status legend: DONE / PARTIAL / NOT STARTED / NEXT
 
@@ -11,12 +11,12 @@ Status legend: DONE / PARTIAL / NOT STARTED / NEXT
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 329+ (all passing) |
+| Total tests | 570 (all passing) |
 | Mutation kill score | 100% (137/137: 100 TCB + 20 V6.5 + 3 vault_data + 3 passkey + 3 onboarding + 4 shamir + 4 adaptive_posture) |
 | Security gate suites | security.md (1-20) + security2.md (21-32) — DONE |
 | Fuzzing | 8 fuzzers, 0 crashes, 0 timeouts |
 | Analyzer errors | 0 |
-| Analyzer warnings | pre-existing info/warnings only |
+| Analyzer warnings | 0 (clean) |
 | External audit | NOT STARTED (pending) |
 | Linux build | DONE (Hermetic, byte-identical, Wayland shortcuts) |
 | Android build | DONE (Binder transit closed, CredentialManager passkeys) |
@@ -51,6 +51,63 @@ The Trusted Computing Base is complete and internally verified.
 - Error oracle prevention (unified errors)
 - URL normalization (search tags)
 - Header parser RangeError fix (truncated-header boundary now throws CorruptBlobError, found by `tool/fuzz_parsers.dart`)
+
+---
+
+## 2b. V6.5.3 Mutation-Window Remediation (2026-09-03)
+
+A live mutation from the mutation-testing campaign escaped into production
+(`vault_crypto_v4.dart` header-MAC used an all-zero nonce), breaking every
+lock→unlock round-trip. Root-caused, fixed, and hardened.
+
+**P0 — Root cause & regression guard**
+- Reverted the live nonce mutation: header-MAC now uses the header's stored
+  `nonce` (was `Uint8List(12)`).
+- `_encodeId` now SHA-256-hashes entry ids (was UTF-8 truncation) — fixes
+  record-id collisions in `importCsv` (17+ char ids differing only in the tail).
+- Added a CI regression guard (`test/security/regression/`) that fails if any
+  `MUTATION` marker is committed in `lib/`.
+- Hardened `tool/mutation_campaign.dart`: runs on a temp copy (never in-place),
+  aborts if the tree is already dirty, cleans up on exit.
+
+**P1 — CI green**
+- Static analysis sweep: `tool/**` excluded, FFI `constant_identifier_names`
+  ignores, all `use_build_context_synchronously` guarded, `curly_braces` fixed.
+  `flutter analyze` now reports **0 issues**.
+- Timing gate made statistical (medians, interleaved samples, 30% tolerance).
+
+**P2 — Real bugs**
+- `vault_service.dart`: centralized MK derivation on header KDF params
+  (`_deriveMk`); `_relockCurrent` forwards header params on every edit (no
+  floor-downgrade brick); `resetVault` wipes VRK/entries/searchTags + deletes
+  SFM + clears snapshots; `importVaultFile` locks after import (no stale-VRK/
+  new-salt corruption); async mutex serializes all mutating ops; `importCsv`
+  batches + relocks once; CSV export escapes quotes + neutralizes formula
+  injection; canary alarm awaits the lock.
+- `vault_crypto_v4.dart`: `_decryptSession` single-pass (was double-decrypt);
+  `duressUnlockSession` derives from slot 2's own header (self-contained decoy)
+  and catches `CorruptBlobError`.
+- `vault_storage.dart`: `writeBlob` atomic; unique temp filename (pid+random);
+  `deleteSfm`; async `vaultExists`.
+- `concurrent_access_test.dart`: rewritten to test VaultService-level parallel
+  saves (only passes with the mutex).
+
+**P3 — KDF floor bug (critical)**
+- `kdfFloorMemory = 64 MiB` but every call site passed `~/ 1024` = 65536.
+  libsodium's `crypto_pwhash` memlimit is in **bytes**, so the real KDF used
+  only **64 KiB** — sub-ms and weak. Fixed all sites to pass the full 64 MiB.
+  Timing test now takes ~2s and has an absolute lower bound (>10ms) as a
+  tripwire against future param downgrades.
+
+**P4 — CI & hardening**
+- Added a `unit-tests` job covering all orphaned non-security test dirs.
+- `timeout-minutes` on every job; `actions/checkout` and
+  `subosito/flutter-action` pinned by commit SHA.
+- `debugVrk` guarded to debug builds.
+
+> **Data note:** any `vault.blob`/snapshot written by the mutated build is
+> permanently unreadable (tag computed under the zero nonce). Delete and
+> recreate dev vaults; `resetVault` now clears snapshots + SFM.
 
 ---
 
@@ -134,7 +191,7 @@ All V6.5 modules implemented, unit-tested, and mutation-verified.
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| Full test suite | 329+ | DONE (all pass) |
+| Full test suite | 570 | DONE (all pass) |
 | Mutation campaign (core) | 100/100 | DONE (100% kill, M01-M100) |
 | Mutation campaign (V6.5) | 20/20 | DONE (100% kill, M101-M120) |
 | Mutation campaign (Vault Data) | 3/3 | DONE (100% kill, M121-M123) |
@@ -206,8 +263,8 @@ All V6.5 modules implemented, unit-tested, and mutation-verified.
 
 | Document | Status |
 |----------|--------|
-| `README.md` | DONE (updated for V6.5.2) |
-| `SECURITY.md` | DONE (updated for V6.5.2 threat model) |
+| `README.md` | DONE (updated for V6.5.3) |
+| `SECURITY.md` | DONE (updated for V6.5.3 threat model) |
 | `SECURITY_AUDIT.md` | DONE (updated with V6.5 audit) |
 | `AUDIT_BRIEF_V65.md` | DONE (created) |
 | `CONTRIBUTING.md` | DONE (created) |
@@ -285,4 +342,4 @@ V6.5 additions:
 
 ---
 
-**Bottom line:** Crypto core and V6.5 features mathematically verified (137/137 mutation kill). Full suite is 329+ tests, all passing. Security gate suites complete. Eight fuzzers, 0 crashes/timeouts. Linux (Hermetic/Wayland) and Android (Binder-closed/Passkeys) builds verified. Remaining blocker: external audit. See [`TESTING.md`](TESTING.md) for the full verification registry.
+**Bottom line:** Crypto core and V6.5 features mathematically verified (137/137 mutation kill). Full suite is 570 tests, all passing. Security gate suites complete. Eight fuzzers, 0 crashes/timeouts. Linux (Hermetic/Wayland) and Android (Binder-closed/Passkeys) builds verified. V6.5.3 remediated a live mutation-window bug and fixed the KDF floor (64 MiB was silently reduced to 64 KiB). Remaining blocker: external audit. See [`TESTING.md`](TESTING.md) for the full verification registry.

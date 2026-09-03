@@ -26,7 +26,8 @@ class MockTrayPlatform implements TrayPlatform {
   }
 
   @override
-  Future<void> updateState({required String icon, required String tooltip}) async {
+  Future<void> updateState(
+      {required String icon, required String tooltip}) async {
     lastIcon = icon;
     lastTooltip = tooltip;
   }
@@ -48,7 +49,8 @@ void main() {
     expect(mock.lastTooltip, 'Vault Locked');
   });
 
-  test('tray icon updates to Unlocked when vault state becomes Unlocked', () async {
+  test('tray icon updates to Unlocked when vault state becomes Unlocked',
+      () async {
     final mock = MockTrayPlatform();
     final controller = TrayController(
       platform: mock,
@@ -58,7 +60,8 @@ void main() {
     );
     await controller.init();
 
-    controller.onStateChanged(Unlocked(vaultData: VaultData(entries: []), blob: Uint8List(0)));
+    controller.onStateChanged(
+        Unlocked(vaultData: VaultData(entries: []), blob: Uint8List(0)));
     expect(mock.lastIcon, 'unlocked_icon');
     expect(mock.lastTooltip, 'Vault Unlocked');
   });

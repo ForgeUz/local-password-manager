@@ -27,8 +27,9 @@ void main() {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList(
         '{"entries":[{"id":"e1","title":"Bank","username":"u",'
-        '"password":"p","url":"bank.example.com","domain":"bank.example.com",'
-        '"tier":1}]}'.codeUnits,
+                '"password":"p","url":"bank.example.com","domain":"bank.example.com",'
+                '"tier":1}]}'
+            .codeUnits,
       );
       final oldMp = createMP('oldMP');
       final newMp = createMP('newMP');
@@ -52,7 +53,8 @@ void main() {
       );
 
       // New MP + TOTP succeeds.
-      final session = await crypto.unlockSession(result.blob, newMp, totpBytes: sfm);
+      final session =
+          await crypto.unlockSession(result.blob, newMp, totpBytes: sfm);
       expect(session.entries.length, 1);
       expect(session.entries.first.id, 'e1');
       session.vrk.dispose();
@@ -77,7 +79,8 @@ void main() {
 
       // Simulate an interrupted change: write the temp file but never rename.
       final tmp = File('${dir.path}${Platform.pathSeparator}.vault.blob.tmp');
-      final newBlob = (await crypto.changeMasterPassword(blob, oldMp, newMp)).blob;
+      final newBlob =
+          (await crypto.changeMasterPassword(blob, oldMp, newMp)).blob;
       await tmp.writeAsBytes(newBlob, flush: true);
 
       // The live file is still the OLD blob: old MP still opens it.
@@ -96,8 +99,9 @@ void main() {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList(
         '{"entries":[{"id":"e1","title":"Bank","username":"u",'
-        '"password":"p","url":"bank.example.com","domain":"bank.example.com",'
-        '"tier":1}]}'.codeUnits,
+                '"password":"p","url":"bank.example.com","domain":"bank.example.com",'
+                '"tier":1}]}'
+            .codeUnits,
       );
       final oldMp = createMP('oldMP');
       final newMp = createMP('newMP');

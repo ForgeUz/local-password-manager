@@ -23,8 +23,9 @@ void main() {
     // Build the decoy blob (locked under VRK_duress, same salt as primary).
     final decoyJson = Uint8List.fromList(
       '{"entries":[{"id":"d1","title":"Old Email","username":"a@b.c",'
-      '"password":"lowvalue","url":"mail.example.com",'
-      '"domain":"mail.example.com","tier":0}]}'.codeUnits,
+              '"password":"lowvalue","url":"mail.example.com",'
+              '"domain":"mail.example.com","tier":0}]}'
+          .codeUnits,
     );
     final decoy = await crypto.lockDecoy(decoyJson, duressMp, fixedSalt);
 

@@ -28,7 +28,8 @@ String _entryJson(int i) {
 
 void main() {
   group('Gate 14.1 Full Lifecycle', () {
-    test('create -> add 100 entries -> lock -> unlock -> verify all accessible', () async {
+    test('create -> add 100 entries -> lock -> unlock -> verify all accessible',
+        () async {
       final crypto = VaultCryptoV4();
       final entries = List.generate(100, (i) => _entryJson(i)).join(',');
       final json = Uint8List.fromList('{"entries":[$entries]}'.codeUnits);
@@ -38,13 +39,15 @@ void main() {
       expect(result, equals(json));
     });
 
-    test('change master password -> unlock with new -> verify entries', () async {
+    test('change master password -> unlock with new -> verify entries',
+        () async {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList(
         '{"entries":[${_entryJson(1)}]}'.codeUnits,
       );
       final blob = await crypto.lockVault(json, _mp('old'));
-      final result = await crypto.changeMasterPassword(blob, _mp('old'), _mp('new'));
+      final result =
+          await crypto.changeMasterPassword(blob, _mp('old'), _mp('new'));
       // Old password no longer works.
       await expectLater(
         crypto.unlockVault(result.blob, _mp('old')),
@@ -61,7 +64,8 @@ void main() {
       final totp = Uint8List.fromList([1, 2, 3, 4, 5, 6]);
       final blob = await crypto.lockVault(json, _mp('mp'), totpBytes: totp);
       // Unlock with correct TOTP succeeds (via unlockSession, which folds TOTP).
-      final session = await crypto.unlockSession(blob, _mp('mp'), totpBytes: totp);
+      final session =
+          await crypto.unlockSession(blob, _mp('mp'), totpBytes: totp);
       expect(session.entries, isEmpty);
       session.vrk.dispose();
       // Unlock with wrong TOTP fails.
@@ -72,12 +76,14 @@ void main() {
       );
     });
 
-    test('set up duress -> unlock with duress -> verify decoy entries', () async {
+    test('set up duress -> unlock with duress -> verify decoy entries',
+        () async {
       final crypto = VaultCryptoV4();
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);

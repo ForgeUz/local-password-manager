@@ -13,7 +13,7 @@
 
 Vault Crypto is a local-first, zero-cloud password manager. The cryptographic core (V4/V5) is internally verified:
 
-- **315+ tests** (all passing)
+- **570 tests** (all passing)
 - **133/133 mutation kill** (100% kill score across entire TCB + V6.5 + vault data + passkey + onboarding + shamir)
 - **Security gate suites** — [`security.md`](security.md) (gates 1-20) + [`security2.md`](security2.md) (gates 21-32)
 - **6 fuzzers, 0 crashes**
@@ -174,7 +174,7 @@ These are the properties we want auditors to verify (or break):
 
 | Method | Scope | Result |
 |--------|-------|--------|
-| Unit tests | 315+ tests | All pass |
+| Unit tests | 570 tests | All pass |
 | Mutation testing | 133 mutations, full TCB + V6.5 + vault data + passkey + onboarding + shamir | 100% kill (133/133) |
 | Security gate suites | security.md (1-20) + security2.md (21-32) | All gates tested |
 | Fuzzing | 6 fuzzers | 0 crashes |
@@ -232,8 +232,8 @@ sudo apt install -y clang cmake ninja-build pkg-config \
 
 ```bash
 flutter pub get
-flutter test                    # 315+ tests
-flutter analyze                 # 0 errors expected
+flutter test                    # 570 tests
+flutter analyze                 # 0 issues
 dart run tool/mutation_campaign.dart   # mutation kill score (133/133)
 ```
 

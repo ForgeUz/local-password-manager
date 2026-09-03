@@ -143,7 +143,7 @@ class VaultCryptoV4 {
     final mk = Argon2id.derive(
       duressMp.readBytes(),
       salt,
-      memory: V4Constants.kdfFloorMemory ~/ 1024,
+      memory: V4Constants.kdfFloorMemory,
       iterations: V4Constants.kdfFloorIterations,
       parallelism: V4Constants.kdfFloorParallelism,
     );
@@ -157,7 +157,7 @@ class VaultCryptoV4 {
           vrkDuress,
           entries,
           salt: salt,
-          kdfMemory: V4Constants.kdfFloorMemory ~/ 1024,
+          kdfMemory: V4Constants.kdfFloorMemory,
           kdfIterations: V4Constants.kdfFloorIterations,
           kdfParallelism: V4Constants.kdfFloorParallelism,
         );
@@ -185,7 +185,7 @@ class VaultCryptoV4 {
     final mk = Argon2id.derive(
       mp.readBytes(),
       salt,
-      memory: V4Constants.kdfFloorMemory ~/ 1024,
+      memory: V4Constants.kdfFloorMemory,
       iterations: V4Constants.kdfFloorIterations,
       parallelism: V4Constants.kdfFloorParallelism,
     );
@@ -197,7 +197,7 @@ class VaultCryptoV4 {
           vrk,
           salt,
           nonce,
-          V4Constants.kdfFloorMemory ~/ 1024,
+          V4Constants.kdfFloorMemory,
           V4Constants.kdfFloorIterations,
           V4Constants.kdfFloorParallelism,
           entries,
@@ -229,7 +229,7 @@ class VaultCryptoV4 {
       vrk,
       salt ?? _randomBytes(V4Constants.saltSize),
       nonce,
-      kdfMemory ?? V4Constants.kdfFloorMemory ~/ 1024,
+      kdfMemory ?? V4Constants.kdfFloorMemory,
       kdfIterations ?? V4Constants.kdfFloorIterations,
       kdfParallelism ?? V4Constants.kdfFloorParallelism,
       entries,
@@ -526,37 +526,44 @@ class VaultCryptoV4 {
   /// Unlock with a duress-derived VRK.
   ///
   /// SECURITY: mp and MK are zeroed after use.
+  ///
+  /// The duress MK is derived from SLOT 2's OWN header (salt + KDF params), not
+  /// the primary header's. lockDecoy locks the decoy under its own header params
+  /// (currently the floor). If the primary vault ever uses params above the
+  /// floor, deriving the duress MK from the primary header would mismatch the
+  /// decoy's floor params and permanently break duress unlock. Deriving from
+  /// slot 2's header makes the decoy fully self-contained and consistent.
   Future<UnlockSession> duressUnlockSession(
       Uint8List blob, SecureBuffer mp) async {
     if (blob.length < V4Constants.fixedHeaderSize + V4Constants.tagSize) {
       throw CorruptBlobError();
     }
-    final header = V4Header.parse(blob);
+    // Slot 2 is the decoy vault blob (or noise). Parse it as its own vault.
+    // A noise slot 2 (deniability disabled) must surface as DuressDecryptError,
+    // never a raw parse error.
+    final slot2 = slot2Of(blob);
+    V4Header slot2Header;
+    try {
+      slot2Header = V4Header.parse(slot2);
+    } on UnsupportedFormatError {
+      throw DuressDecryptError();
+    } on CorruptBlobError {
+      throw DuressDecryptError();
+    }
     final mk = Argon2id.derive(
       mp.readBytes(),
-      header.salt,
-      memory: header.kdfMemory,
-      iterations: header.kdfIterations,
-      parallelism: header.kdfParallelism,
+      slot2Header.salt,
+      memory: slot2Header.kdfMemory,
+      iterations: slot2Header.kdfIterations,
+      parallelism: slot2Header.kdfParallelism,
     );
 
     try {
       final vrkDuress = Duress.deriveVrkDuress(mk);
       try {
-        // Slot 2 is the decoy vault blob (or noise). Parse it as its own vault.
-        final slot2 = slot2Of(blob);
-        try {
-          final slot2Header = V4Header.parse(slot2);
-          return _decryptSession(slot2, slot2Header, vrkDuress);
-        } on DecryptionFailedError {
-          throw DuressDecryptError();
-        } on UnsupportedFormatError {
-          // Slot 2 is noise (deniability disabled) -> duress cannot open.
-          throw DuressDecryptError();
-        } on CorruptBlobError {
-          // Malformed slot 2 must not leak which vault state we are in.
-          throw DuressDecryptError();
-        }
+        return _decryptSession(slot2, slot2Header, vrkDuress);
+      } on DecryptionFailedError {
+        throw DuressDecryptError();
       } finally {
         // CRITICAL: Zero VRK_duress after use
         vrkDuress.fillRange(0, vrkDuress.length, 0);

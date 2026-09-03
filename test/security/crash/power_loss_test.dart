@@ -51,7 +51,8 @@ void main() {
       }
     });
 
-    test('atomic write: completed save produces new state (no corruption)', () async {
+    test('atomic write: completed save produces new state (no corruption)',
+        () async {
       final dir = Directory.systemTemp.createTempSync('power_loss2');
       try {
         final storage = VaultStorage(baseDir: dir);
@@ -61,7 +62,8 @@ void main() {
 
         await storage.writeBlobAtomic(blob);
         // The vault opens correctly after the atomic write.
-        final result = await crypto.unlockVault(await storage.readBlob(), _mp('mp'));
+        final result =
+            await crypto.unlockVault(await storage.readBlob(), _mp('mp'));
         expect(result, equals(json));
       } finally {
         dir.deleteSync(recursive: true);
@@ -98,7 +100,8 @@ void main() {
         await tmp.writeAsBytes(Uint8List.fromList([9, 9, 9]), flush: true);
 
         // On restart, the real vault file is the old valid state.
-        final result = await crypto.unlockVault(await storage.readBlob(), _mp('mp'));
+        final result =
+            await crypto.unlockVault(await storage.readBlob(), _mp('mp'));
         expect(result, equals(json));
       } finally {
         dir.deleteSync(recursive: true);

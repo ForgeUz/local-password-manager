@@ -8,7 +8,8 @@ void main() {
   group('RiskTiers', () {
     test('Critical always requires re-auth (even with recent reveal)', () {
       expect(
-        RiskTiers.requiresReauth(RiskTiers.critical, lastReveal: DateTime.now()),
+        RiskTiers.requiresReauth(RiskTiers.critical,
+            lastReveal: DateTime.now()),
         isTrue,
       );
     });
@@ -22,7 +23,8 @@ void main() {
       expect(RiskTiers.requiresReauth(RiskTiers.sensitive), isTrue);
       // Within grace: no re-auth.
       expect(
-        RiskTiers.requiresReauth(RiskTiers.sensitive, lastReveal: DateTime.now()),
+        RiskTiers.requiresReauth(RiskTiers.sensitive,
+            lastReveal: DateTime.now()),
         isFalse,
       );
       // After grace: requires re-auth.
@@ -36,7 +38,8 @@ void main() {
     });
 
     test('heuristic suggests Sensitive for bank/pay/crypto domains', () {
-      expect(RiskTiers.suggestTier('online-banking.example'), RiskTiers.sensitive);
+      expect(
+          RiskTiers.suggestTier('online-banking.example'), RiskTiers.sensitive);
       expect(RiskTiers.suggestTier('paypal.com'), RiskTiers.sensitive);
       expect(RiskTiers.suggestTier('cryptoexchange.io'), RiskTiers.sensitive);
       expect(RiskTiers.suggestTier('news.example.com'), RiskTiers.standard);

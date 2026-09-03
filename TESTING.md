@@ -1,7 +1,7 @@
 ```markdown
 # Vault Crypto — Testing & Verification Registry
 
-**Version:** V6.5.2
+**Version:** V6.5.3
 **Purpose:** Single source of truth for every test suite, mutation run, fuzzer,
 and verification tool. Other docs link here instead of duplicating counts.
 
@@ -27,7 +27,7 @@ Run: `flutter test`
 | Vault | `test/vault/` | data model, storage |
 | Biometric / clipboard / backup / onboarding / passkey / desktop / os | `test/{biometric,clipboard,backup,onboarding,passkey,desktop,os}/` | platform modules |
 
-**Total:** 329+ tests (all passing in a normal environment).
+**Total:** 570 tests (all passing).
 
 > **Note:** FFI-dependent vault round-trip tests require AES-NI initialization.
 > In a sandboxed CI environment (no AES-NI / `ld.so.preload` restrictions) they

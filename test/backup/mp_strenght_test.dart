@@ -8,7 +8,8 @@ void main() {
   });
 
   test('Long but single-class passwords are Weak', () {
-    expect(MpStrength.check('onlyletters').strength, equals(MpStrengthLevel.weak));
+    expect(
+        MpStrength.check('onlyletters').strength, equals(MpStrengthLevel.weak));
   });
 
   test('Mixed class but short passwords are Fair', () {
@@ -16,6 +17,7 @@ void main() {
   });
 
   test('Long mixed class passwords are Strong', () {
-    expect(MpStrength.check('Str0ng!Pass#2024').strength, equals(MpStrengthLevel.strong));
+    expect(MpStrength.check('Str0ng!Pass#2024').strength,
+        equals(MpStrengthLevel.strong));
   });
 }

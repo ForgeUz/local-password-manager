@@ -10,9 +10,10 @@ on:
 jobs:
   crypto-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
         with:
           flutter-version: '3.47.1'
           cache: true
@@ -22,11 +23,37 @@ jobs:
       - run: flutter test test/security/auth/
       - run: flutter test test/security/errors/
 
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
+        with:
+          flutter-version: '3.47.1'
+          cache: true
+      - run: flutter test test/app/
+      - run: flutter test test/vault/
+      - run: flutter test test/backup/
+      - run: flutter test test/os/
+      - run: flutter test test/crypto/
+      - run: flutter test test/lock/
+      - run: flutter test test/coercion/
+      - run: flutter test test/sync/
+      - run: flutter test test/totp/
+      - run: flutter test test/clipboard/
+      - run: flutter test test/biometric/
+      - run: flutter test test/passkey/
+      - run: flutter test test/onboarding/
+      - run: flutter test test/desktop/
+      - run: flutter test test/linux/
+
   statemachine-model:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
         with:
           flutter-version: '3.47.1'
           cache: true
@@ -41,9 +68,10 @@ jobs:
 
   fuzzing:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
         with:
           flutter-version: '3.47.1'
           cache: true
@@ -54,9 +82,10 @@ jobs:
 
   timing:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
         with:
           flutter-version: '3.47.1'
           cache: true
@@ -65,9 +94,10 @@ jobs:
 
   memory:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
         with:
           flutter-version: '3.47.1'
           cache: true
@@ -75,9 +105,10 @@ jobs:
 
   supply-chain:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
         with:
           flutter-version: '3.47.1'
           cache: true
@@ -86,9 +117,10 @@ jobs:
 
   static-analysis:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: subosito/flutter-action@44ac965b0f018d799cc8fe40d76c6c53a7a5e5f9
         with:
           flutter-version: '3.47.1'
           cache: true

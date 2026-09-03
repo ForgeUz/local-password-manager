@@ -35,7 +35,8 @@ void main() {
     });
 
     test('dispose zeroes native memory (sodium_memzero)', () {
-      final marker = Uint8List.fromList(List.generate(32, (i) => (0xA0 + i) & 0xFF));
+      final marker =
+          Uint8List.fromList(List.generate(32, (i) => (0xA0 + i) & 0xFF));
       final buf = SecureBuffer.alloc(marker.length);
       buf.writeBytes(marker);
       // Marker present before dispose.

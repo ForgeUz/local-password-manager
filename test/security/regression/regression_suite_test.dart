@@ -18,7 +18,9 @@ import 'package:vault_crypto/src/crypto/v4/header.dart';
 
 void main() {
   group('Gate 31.2 Regression Protection', () {
-    test('REGRESSION: header truncated at fixed-header boundary throws CorruptBlobError, not RangeError', () {
+    test(
+        'REGRESSION: header truncated at fixed-header boundary throws CorruptBlobError, not RangeError',
+        () {
       // Bug found by tool/fuzz_vault.dart: a header truncated at exactly
       // fixedHeaderSize (44) or 45 bytes leaked a RangeError instead of
       // CorruptBlobError. Fixed in lib/src/crypto/v4/header.dart by moving the
@@ -36,7 +38,9 @@ void main() {
       }
     });
 
-    test('REGRESSION: header with valid magic but truncated entry table throws typed error', () {
+    test(
+        'REGRESSION: header with valid magic but truncated entry table throws typed error',
+        () {
       // A header with valid magic/version but a truncated entry table must
       // throw CorruptBlobError, not RangeError.
       final bytes = Uint8List(V4Constants.fixedHeaderSize + 2);

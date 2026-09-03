@@ -36,7 +36,8 @@ void main() {
       final tag = SearchTag.compute(vrk, 'github.com');
       // The tag is 32 bytes of HMAC output, not the domain.
       expect(tag.length, 32);
-      expect(_contains(tag, Uint8List.fromList('github.com'.codeUnits)), isFalse);
+      expect(
+          _contains(tag, Uint8List.fromList('github.com'.codeUnits)), isFalse);
     });
 
     test('search tags are bucket-padded (no size leakage)', () {
@@ -87,7 +88,8 @@ void main() {
       final tag = SearchTag.compute(vrk, 'github.com');
       // Without the VRK, the tag cannot be reversed to the domain. We verify
       // the tag is not the domain and is not a simple encoding of it.
-      expect(_contains(tag, Uint8List.fromList('github.com'.codeUnits)), isFalse);
+      expect(
+          _contains(tag, Uint8List.fromList('github.com'.codeUnits)), isFalse);
       // A different VRK produces a different tag for the same domain.
       final otherVrk = Uint8List.fromList(List.generate(32, (i) => 0xFF - i));
       final otherTag = SearchTag.compute(otherVrk, 'github.com');

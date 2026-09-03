@@ -24,8 +24,9 @@ void main() {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList(
         '{"entries":[{"id":"e1","title":"Bank","username":"u",'
-        '"password":"p","url":"bank.example.com","domain":"bank.example.com",'
-        '"tier":1}]}'.codeUnits,
+                '"password":"p","url":"bank.example.com","domain":"bank.example.com",'
+                '"tier":1}]}'
+            .codeUnits,
       );
       final mp = createMP('mp');
       final sfm = Uint8List.fromList('123456'.codeUnits); // TOTP seed bytes
@@ -38,7 +39,8 @@ void main() {
       final sfmFile = SecondFactor.seal(mkBase, sfm, codes);
 
       // Unlock via MP + valid backup code -> SFM released into the KDF.
-      final result = await crypto.unlockWithBackupCode(blob, mp, sfmFile, codes.first);
+      final result =
+          await crypto.unlockWithBackupCode(blob, mp, sfmFile, codes.first);
       expect(result.session.entries.length, 1);
       expect(result.session.entries.first.id, 'e1');
       // The code was consumed (single-use): updated file has one fewer hash.
@@ -73,7 +75,8 @@ void main() {
       final sfmFile = SecondFactor.seal(mkBase, sfm, codes);
 
       // First use consumes the code.
-      final r1 = await crypto.unlockWithBackupCode(blob, mp, sfmFile, codes.first);
+      final r1 =
+          await crypto.unlockWithBackupCode(blob, mp, sfmFile, codes.first);
       r1.session.vrk.dispose();
       // Second use of the same code fails (already consumed).
       await expectLater(

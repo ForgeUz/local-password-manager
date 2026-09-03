@@ -23,7 +23,8 @@ SecureBuffer _mp(String s) {
 
 void main() {
   group('Gate 29.1 Multiple Vault Files', () {
-    test('two vaults with different passwords: each opens with its own', () async {
+    test('two vaults with different passwords: each opens with its own',
+        () async {
       final crypto = VaultCryptoV4();
       final jsonA = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final jsonB = Uint8List.fromList('{"entries":[]}'.codeUnits);
@@ -52,7 +53,8 @@ void main() {
       );
     });
 
-    test('no key material from vault A persists when unlocking vault B', () async {
+    test('no key material from vault A persists when unlocking vault B',
+        () async {
       final crypto = VaultCryptoV4();
       final jsonA = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final jsonB = Uint8List.fromList('{"entries":[]}'.codeUnits);
@@ -65,7 +67,8 @@ void main() {
       expect(await crypto.unlockVault(blobB, _mp('passB')), equals(jsonB));
     });
 
-    test('shamir shares are vault-specific (share from A does not recover B)', () {
+    test('shamir shares are vault-specific (share from A does not recover B)',
+        () {
       // The MK is vault-specific; shares of A's MK cannot recover B's MK.
       final mkA = Uint8List.fromList(List.generate(32, (i) => i));
       final mkB = Uint8List.fromList(List.generate(32, (i) => 0xFF - i));

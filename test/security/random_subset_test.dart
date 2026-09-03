@@ -8,7 +8,8 @@ void main() {
   group('RandomSubset', () {
     test('selects ~20% of non-Critical entries as decoys', () {
       // 100 entries: 90 Standard/Sensitive, 10 Critical
-      final entries = List.generate(100, (i) => i < 10 ? 2 : 0); // tier: 2=Critical
+      final entries =
+          List.generate(100, (i) => i < 10 ? 2 : 0); // tier: 2=Critical
       final decoys = RandomSubset.selectDecoys(
         targetIndex: 0,
         tiers: entries,

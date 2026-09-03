@@ -48,21 +48,23 @@ void main() {
       for (var i = 0; i < 100; i++) {
         final wrapped = KeyHierarchy.wrapDek(vrk, dek);
         final nonce = wrapped.sublist(0, 12);
-        final key = nonce.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+        final key =
+            nonce.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
         expect(nonces.add(key), isTrue,
             reason: 'nonce collision under same VRK at iteration $i');
       }
     });
 
-    test('per-entry DEK: each entry has unique DEK, nonce reuse across entries OK', () {
+    test(
+        'per-entry DEK: each entry has unique DEK, nonce reuse across entries OK',
+        () {
       // Each entry gets its own DEK (CSPRNG). Nonce reuse across different
       // DEKs is acceptable (different keys). Verify DEKs are unique.
       final deks = <String>{};
       for (var i = 0; i < 50; i++) {
         final dek = KeyHierarchy.generateDek();
         final key = dek.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-        expect(deks.add(key), isTrue,
-            reason: 'DEK collision at iteration $i');
+        expect(deks.add(key), isTrue, reason: 'DEK collision at iteration $i');
       }
     });
 

@@ -54,7 +54,8 @@ void main() {
       expect(s1[0].y, isNot(equals(s2[0].y)));
     });
 
-    test('share reconstruction is deterministic (same shares -> same secret)', () {
+    test('share reconstruction is deterministic (same shares -> same secret)',
+        () {
       final secret = _secret(32);
       final shares = ShamirKit.split(secret, n: 3, k: 2);
       final r1 = ShamirKit.reconstruct([shares[0], shares[1]]);
@@ -63,12 +64,15 @@ void main() {
       expect(r1, equals(secret));
     });
 
-    test('invalid shares (wrong polynomial) produce wrong secret (detected)', () {
+    test('invalid shares (wrong polynomial) produce wrong secret (detected)',
+        () {
       final secret = _secret(32);
       final shares = ShamirKit.split(secret, n: 5, k: 3);
       // Corrupt one share's y value -> reconstruction yields wrong secret.
-      final corrupted = Share(x: shares[0].x, y: Uint8List.fromList(shares[0].y)..[0] ^= 0xFF);
-      final recovered = ShamirKit.reconstruct([corrupted, shares[1], shares[2]]);
+      final corrupted = Share(
+          x: shares[0].x, y: Uint8List.fromList(shares[0].y)..[0] ^= 0xFF);
+      final recovered =
+          ShamirKit.reconstruct([corrupted, shares[1], shares[2]]);
       expect(recovered, isNot(equals(secret)));
     });
 

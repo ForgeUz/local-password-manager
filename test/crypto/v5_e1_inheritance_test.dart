@@ -11,7 +11,8 @@ import 'package:vault_crypto/src/security/shamir_kit.dart';
 // useless.
 void main() {
   group('v5 E1 inheritance activation', () {
-    test('succeeds with stale token + K shares; fails with fresh token / <K', () {
+    test('succeeds with stale token + K shares; fails with fresh token / <K',
+        () {
       // Setup in seconds: bundle secret split 3-of-5.
       final bundleSecret = Uint8List.fromList(List.generate(32, (i) => i));
       final sw = Stopwatch()..start();
@@ -95,7 +96,8 @@ void main() {
 
       // NEW shares (of B) reconstruct B -> can unwrap.
       final newKey = ShamirKit.reconstruct(revoked.newShares.sublist(0, 2));
-      final decrypted = Inheritance.decryptEntry(revoked.newWrappedEntries.first, newKey);
+      final decrypted =
+          Inheritance.decryptEntry(revoked.newWrappedEntries.first, newKey);
       expect(utf8.decode(decrypted), 'heir-secret');
 
       // Old token: epoch-invalidated via Liveness.verify with the new epoch.

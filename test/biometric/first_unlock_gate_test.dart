@@ -6,7 +6,9 @@ import 'package:vault_crypto/src/biometric/first_unlock_gate.dart';
 // fast path. Biometric cannot signal duress — documented honestly.
 void main() {
   group('v5 E20 first-unlock-of-day gate', () {
-    test('armed: first unlock of the day forces MP, later unlocks allow biometric', () {
+    test(
+        'armed: first unlock of the day forces MP, later unlocks allow biometric',
+        () {
       final gate = FirstUnlockGate(requireMpOnFirstUnlock: true);
       // First unlock today -> MP required (biometric denied).
       expect(gate.requiresMp('20260823'), isTrue);

@@ -24,7 +24,8 @@ class MockTransport implements Transport {
 
 void main() {
   group('Gate 21.2 Sync Session State Machine', () {
-    test('no transition skips handshake (PAIRING → SYNCING requires pairing)', () {
+    test('no transition skips handshake (PAIRING → SYNCING requires pairing)',
+        () {
       final s = SyncSession();
       // Cannot start syncing from idle (skips discovering + pairing).
       s.startSyncing('peer');
@@ -36,7 +37,8 @@ void main() {
       expect(s.phase, SyncPhase.syncing);
     });
 
-    test('conflict state always leads to user resolution (never auto-merge)', () {
+    test('conflict state always leads to user resolution (never auto-merge)',
+        () {
       // Two devices modify the same entry concurrently -> conflict.
       final local = VectorClock({'dev1': 1});
       final remote = VectorClock({'dev2': 1});
@@ -93,7 +95,9 @@ void main() {
       expect(s.resolvedEntries, isEmpty);
     });
 
-    test('valid lifecycle: idle → discovering → pairing → syncing → resolved → done', () {
+    test(
+        'valid lifecycle: idle → discovering → pairing → syncing → resolved → done',
+        () {
       final s = SyncSession();
       expect(s.phase, SyncPhase.idle);
       s.discover();

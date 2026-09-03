@@ -33,7 +33,9 @@ class MockClipboardPlatform implements ClipboardPlatform {
 
 void main() {
   group('Gate 32.2 Clipboard History Poisoning', () {
-    test('sensitive MIME type set on copy (prevents most managers from logging)', () async {
+    test(
+        'sensitive MIME type set on copy (prevents most managers from logging)',
+        () async {
       final mock = MockClipboardPlatform();
       final controller = ClipboardController(platform: mock);
       await controller.copy('secret');
@@ -55,7 +57,9 @@ void main() {
       controller.dispose();
     });
 
-    test('malicious app reads clipboard during window: content is sensitive-flagged', () async {
+    test(
+        'malicious app reads clipboard during window: content is sensitive-flagged',
+        () async {
       final mock = MockClipboardPlatform();
       final controller = ClipboardController(platform: mock);
       await controller.copy('secret');

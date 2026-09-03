@@ -20,24 +20,25 @@ SecureBuffer _mp(String s) {
 }
 
 void main() {
-  test('Gate 16.2: password verification time is uniform (no oracle)', () async {
+  test('Gate 16.2: password verification time is uniform (no oracle)',
+      () async {
     final crypto = VaultCryptoV4();
     final json = Uint8List.fromList('{"entries":[]}'.codeUnits);
     final blob = await crypto.lockVault(json, _mp('right'));
 
     // Warm up (Argon2id + AES-NI init).
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 3; i++) {
       try {
         await crypto.unlockVault(blob, _mp('right'));
       } catch (_) {}
     }
 
     // Interleaved measurement: alternate correct/wrong to cancel clock drift and
-    // thermal/GC noise. Argon2id floor params run in ~1ms, so absolute times are
-    // dominated by scheduler noise; medians + a generous tolerance are required.
+    // thermal/GC noise. The floor is 64 MiB / t=3, so each run is tens of ms;
+    // medians + a generous tolerance are required to absorb runner noise.
     final correctTimes = <int>[];
     final wrongTimes = <int>[];
-    for (var i = 0; i < 20; i++) {
+    for (var i = 0; i < 8; i++) {
       var sw = Stopwatch()..start();
       await crypto.unlockVault(blob, _mp('right'));
       sw.stop();
@@ -55,11 +56,18 @@ void main() {
     final wrongMedian = _median(wrongTimes);
     final diffPct = (correctMedian - wrongMedian).abs() / correctMedian * 100;
 
-    // Timing difference must be within a generous 30% (no oracle). The 5% bound
-    // was flaky on CI: sub-ms Argon2id floor runs are dominated by runner noise.
+    // Timing difference must be within a generous 30% (no oracle).
     expect(diffPct, lessThan(30.0),
         reason: 'timing oracle: correct=${correctMedian.toStringAsFixed(0)}us '
             'wrong=${wrongMedian.toStringAsFixed(0)}us diff=${diffPct.toStringAsFixed(2)}%');
+
+    // Absolute lower bound: the 64 MiB / t=3 floor must take at least ~10ms.
+    // This is a tripwire against both runner slowness AND accidental KDF param
+    // downgrades (e.g. the old `~/ 1024` bug that silently used 64 KiB).
+    expect(correctMedian, greaterThan(10000),
+        reason:
+            'KDF floor too weak: correct median ${correctMedian.toStringAsFixed(0)}us '
+            '(expected >= 10ms for 64 MiB / t=3 Argon2id)');
   });
 }
 

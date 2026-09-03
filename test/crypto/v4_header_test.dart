@@ -49,7 +49,8 @@ void main() {
       final bd = bytes.buffer.asByteData();
       bd.setInt32(0, 0x56554c54, Endian.big); // 'VULT'
       bytes[4] = 1; // v3 format version
-      expect(() => V4Header.parse(bytes), throwsA(isA<UnsupportedFormatError>()));
+      expect(
+          () => V4Header.parse(bytes), throwsA(isA<UnsupportedFormatError>()));
     });
   });
 }

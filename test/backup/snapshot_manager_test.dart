@@ -19,7 +19,7 @@ void main() {
   test('Saves snapshot and loads it back', () async {
     final blob = Uint8List.fromList([1, 2, 3, 4]);
     await manager.saveSnapshot(blob);
-    
+
     final loaded = await manager.loadLatestSnapshot();
     expect(loaded, equals(blob));
   });
@@ -31,7 +31,7 @@ void main() {
 
     final files = tempDir.listSync();
     expect(files.length, equals(5));
-    
+
     final latest = await manager.loadLatestSnapshot();
     expect(latest, equals(Uint8List.fromList([5]))); // 6th save -> index 5
   });

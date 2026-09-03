@@ -27,12 +27,14 @@ SecureBuffer _mp(String s) {
 
 void main() {
   group('Gate 2.2 Decoy Vault', () {
-    test('decoy vault uses different key derivation path (different VRK)', () async {
+    test('decoy vault uses different key derivation path (different VRK)',
+        () async {
       final crypto = VaultCryptoV4();
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);
@@ -40,7 +42,8 @@ void main() {
           decoyBlob: decoy, fixedSalt: fixedSalt);
 
       // Primary MP -> primary vault.
-      expect(await crypto.unlockVault(blob, _mp('primary')), equals(primaryJson));
+      expect(
+          await crypto.unlockVault(blob, _mp('primary')), equals(primaryJson));
       // Duress MP -> decoy vault (different key path).
       final session = await crypto.duressUnlockSession(blob, _mp('duress'));
       expect(session.entries.length, 1);
@@ -52,7 +55,8 @@ void main() {
       final crypto = VaultCryptoV4();
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);
@@ -69,7 +73,8 @@ void main() {
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);
@@ -88,7 +93,8 @@ void main() {
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);
@@ -107,7 +113,8 @@ void main() {
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);
@@ -119,15 +126,18 @@ void main() {
       session.vrk.dispose();
 
       // Primary vault still opens with the primary MP, unchanged.
-      expect(await crypto.unlockVault(blob, _mp('primary')), equals(primaryJson));
+      expect(
+          await crypto.unlockVault(blob, _mp('primary')), equals(primaryJson));
     });
 
-    test('error messages for wrong password are identical for both vaults', () async {
+    test('error messages for wrong password are identical for both vaults',
+        () async {
       final crypto = VaultCryptoV4();
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);

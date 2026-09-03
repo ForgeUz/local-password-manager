@@ -63,7 +63,8 @@ void main() {
   });
 
   group('v5 header MAC (E12)', () {
-    test('outer AEAD is empty-plaintext header MAC (tag only, no ciphertext)', () async {
+    test('outer AEAD is empty-plaintext header MAC (tag only, no ciphertext)',
+        () async {
       final crypto = VaultCryptoV4();
       final json = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final mp = createMP('testMP');
@@ -115,13 +116,15 @@ void main() {
       expect(await crypto.unlockVault(blobDecoy, mp), equals(json));
     });
 
-    test('duress MP opens decoy embedded in slot 2 of the single file', () async {
+    test('duress MP opens decoy embedded in slot 2 of the single file',
+        () async {
       final crypto = VaultCryptoV4();
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old Email","username":"a@b.c",'
-        '"password":"low","url":"mail.example.com","domain":"mail.example.com",'
-        '"tier":0}]}'.codeUnits,
+                '"password":"low","url":"mail.example.com","domain":"mail.example.com",'
+                '"tier":0}]}'
+            .codeUnits,
       );
       final mp = createMP('primary');
       final duressMp = createMP('duress');
@@ -144,9 +147,16 @@ void main() {
 int _headerLength(V4Header header) {
   var len = V4Constants.fixedHeaderSize + 2;
   for (final rec in header.entries) {
-    len += V4Constants.uuidSize + 1 + 2 + rec.wrappedDek.length +
-        2 + rec.searchTags.length * V4Constants.searchTagSize +
-        2 + rec.vectorClock.length + 4 + rec.ciphertext.length;
+    len += V4Constants.uuidSize +
+        1 +
+        2 +
+        rec.wrappedDek.length +
+        2 +
+        rec.searchTags.length * V4Constants.searchTagSize +
+        2 +
+        rec.vectorClock.length +
+        4 +
+        rec.ciphertext.length;
   }
   return len;
 }

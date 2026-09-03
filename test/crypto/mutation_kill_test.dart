@@ -21,7 +21,8 @@ import 'package:vault_crypto/src/sync/vector_clock.dart';
 void main() {
   group('Mutation kill tests', () {
     // ---- key_hierarchy ----
-    test('M16/M52: VRK derivation is deterministic and IKM-independent of salt', () {
+    test('M16/M52: VRK derivation is deterministic and IKM-independent of salt',
+        () {
       final mk = Uint8List.fromList(List.generate(32, (i) => i));
       final v1 = KeyHierarchy.deriveVrk(mk);
       final v2 = KeyHierarchy.deriveVrk(mk);
@@ -34,8 +35,8 @@ void main() {
       final vrk = Uint8List(V4Constants.keySize);
       // 12 nonce + 16 tag = 28 minimum; 10 is too short.
       final short = Uint8List(10);
-      expect(() => KeyHierarchy.unwrapDek(vrk, short),
-          throwsA(isA<StateError>()));
+      expect(
+          () => KeyHierarchy.unwrapDek(vrk, short), throwsA(isA<StateError>()));
     });
 
     test('M19/M55: generateDek produces non-zero, non-deterministic DEKs', () {
@@ -97,7 +98,10 @@ void main() {
     test('M29/M63: unpad rejects invalid embedded length', () {
       // length prefix says 100 but only 4 bytes present -> must throw CorruptBlobError
       final b = Uint8List(4);
-      b[0] = 0; b[1] = 0; b[2] = 0; b[3] = 100;
+      b[0] = 0;
+      b[1] = 0;
+      b[2] = 0;
+      b[3] = 100;
       expect(() => Padding.unpad(b), throwsA(isA<CorruptBlobError>()));
     });
 
@@ -152,7 +156,9 @@ void main() {
     });
 
     // ---- second_factor ----
-    test('M34: backup code candidate hash is zeroed (behavioral: correct code works)', () {
+    test(
+        'M34: backup code candidate hash is zeroed (behavioral: correct code works)',
+        () {
       final mkBase = Uint8List.fromList(List.generate(32, (i) => i));
       final sfm = Uint8List.fromList(List.generate(20, (i) => 0x40 + i));
       final sealed = SecondFactor.seal(mkBase, sfm, ['code1', 'code2']);
@@ -224,7 +230,8 @@ void main() {
       mp.dispose();
     });
 
-    test('M92: relock does not crash and returns a valid-length blob', () async {
+    test('M92: relock does not crash and returns a valid-length blob',
+        () async {
       final crypto = VaultCryptoV4();
       final mp = SecureBuffer.alloc(8);
       mp.writeBytes(Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]));
@@ -232,11 +239,14 @@ void main() {
       final blob = await crypto.lockVault(json, mp);
       // Unlock to obtain the VRK, then re-lock with it (the relock path).
       final session = await crypto.unlockSession(blob, mp);
-      final relocked = await crypto.relock(session.vrk.readBytes(), session.entries);
+      final relocked =
+          await crypto.relock(session.vrk.readBytes(), session.entries);
       // The relock must not crash and must produce a structurally valid blob
       // (header + slot2 + outer tag), regardless of the round-trip unlock path.
-      expect(relocked.length,
-          greaterThanOrEqualTo(V4Constants.fixedHeaderSize + V4Constants.tagSize));
+      expect(
+          relocked.length,
+          greaterThanOrEqualTo(
+              V4Constants.fixedHeaderSize + V4Constants.tagSize));
       session.vrk.dispose();
       mp.dispose();
     });

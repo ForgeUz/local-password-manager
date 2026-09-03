@@ -11,10 +11,16 @@ void main() {
     test('zeroes the secret buffer on wipe', () {
       final secret = SecureBuffer.alloc(64);
       secret.writeBytes(Uint8List.fromList(List.generate(64, (i) => 0x40 + i)));
-      expect(MemoryDumpVerifier.scanFor(secret, Uint8List.fromList(List.generate(8, (i) => 0x40 + i))), isTrue);
+      expect(
+          MemoryDumpVerifier.scanFor(
+              secret, Uint8List.fromList(List.generate(8, (i) => 0x40 + i))),
+          isTrue);
       SecretWiper.wipe(secret);
       expect(secret.isDisposed, isTrue);
-      expect(MemoryDumpVerifier.scanFor(secret, Uint8List.fromList(List.generate(8, (i) => 0x40 + i))), isFalse);
+      expect(
+          MemoryDumpVerifier.scanFor(
+              secret, Uint8List.fromList(List.generate(8, (i) => 0x40 + i))),
+          isFalse);
     });
 
     test('wipe is idempotent', () {

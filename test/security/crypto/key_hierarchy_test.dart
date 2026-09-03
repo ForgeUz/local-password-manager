@@ -33,7 +33,8 @@ void main() {
       expect(ConstantTime.equals(vrk, KeyHierarchy.deriveVrk(mk)), isTrue);
     });
 
-    test('each DEK is independently generated CSPRNG (not derived from VRK)', () {
+    test('each DEK is independently generated CSPRNG (not derived from VRK)',
+        () {
       final d1 = KeyHierarchy.generateDek();
       final d2 = KeyHierarchy.generateDek();
       expect(d1.length, 32);

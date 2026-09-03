@@ -24,7 +24,8 @@ void main() {
       expect(a.decideAgainst(b), SyncFlag.conflict);
     });
 
-    test('conflict -> archive losing version + surface prompt (no auto-merge)', () async {
+    test('conflict -> archive losing version + surface prompt (no auto-merge)',
+        () async {
       final dir = Directory.systemTemp.createTempSync('conflict_test');
       try {
         final resolver = ConflictResolver(conflictsDir: dir);

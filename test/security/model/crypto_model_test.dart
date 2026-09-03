@@ -32,7 +32,8 @@ void main() {
         final salt = _bytes(1 + rng.nextInt(32), i + 1);
         final info = _bytes(1 + rng.nextInt(32), i + 2);
         final outLen = 16 + rng.nextInt(48);
-        final libsodium = Hkdf.derive(ikm, salt, String.fromCharCodes(info), outLen);
+        final libsodium =
+            Hkdf.derive(ikm, salt, String.fromCharCodes(info), outLen);
         final reference = ReferenceHkdf.derive(ikm, salt, info, outLen);
         expect(libsodium, equals(reference),
             reason: 'HKDF mismatch at vector $i');
@@ -76,10 +77,10 @@ void main() {
       final salt = _bytes(32, 2);
       final info = _bytes(8, 3);
       for (final outLen in [1, 32, 33, 64]) {
-        final libsodium = Hkdf.derive(ikm, salt, String.fromCharCodes(info), outLen);
+        final libsodium =
+            Hkdf.derive(ikm, salt, String.fromCharCodes(info), outLen);
         final reference = ReferenceHkdf.derive(ikm, salt, info, outLen);
-        expect(libsodium, equals(reference),
-            reason: 'outLen=$outLen mismatch');
+        expect(libsodium, equals(reference), reason: 'outLen=$outLen mismatch');
       }
     });
 

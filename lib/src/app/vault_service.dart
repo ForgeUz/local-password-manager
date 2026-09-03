@@ -83,7 +83,12 @@ class VaultService implements Lockable {
 
   // Debug/test accessor for the held VRK (biometric fast-path tests).
   // Returns a COPY so later wipe (lock) does not zero the captured bytes.
+  // Guarded to debug builds: shipping a public VRK-copying accessor in release
+  // would let any caller exfiltrate the master key material. Uses a const
+  // debug flag (no Flutter dependency in this pure-Dart module).
+  static const bool _debug = bool.fromEnvironment('dart.vm.product') == false;
   Uint8List get debugVrk {
+    assert(_debug, 'debugVrk is debug-only');
     final b = _vrk?.readBytes();
     return b == null ? Uint8List(0) : Uint8List.fromList(b);
   }
@@ -127,76 +132,82 @@ class VaultService implements Lockable {
   // v5: "Delete and Create New Vault". Securely delete the blob + SFM + any
   // snapshots, then route to SetupRequired so the user starts fresh.
   Future<void> resetVault() async {
-    await _storage.deleteVault();
-    await _storage.deleteSfm();
-    await _snapshots.clearSnapshots();
-    // Wipe any held VRK and clear all in-memory state so no key material or
-    // entries survive a reset (the old comment claimed this but only deleted
-    // the blob file).
-    if (_vrk != null) {
-      SecretWiper.wipe(_vrk!);
-      _vrk = null;
-    }
-    _currentBlob = null;
-    _blobSalt = null;
-    _entries = [];
-    _searchTags = {};
-    _isDuress = false;
-    _canaryTriggered = false;
-    _store.dispatch(BlobResetComplete());
+    await _mutex.synchronized(() async {
+      await _storage.deleteVault();
+      await _storage.deleteSfm();
+      await _snapshots.clearSnapshots();
+      // Wipe any held VRK and clear all in-memory state so no key material or
+      // entries survive a reset (the old comment claimed this but only deleted
+      // the blob file).
+      if (_vrk != null) {
+        SecretWiper.wipe(_vrk!);
+        _vrk = null;
+      }
+      _currentBlob = null;
+      _blobSalt = null;
+      _entries = [];
+      _searchTags = {};
+      _isDuress = false;
+      _canaryTriggered = false;
+      _store.dispatch(BlobResetComplete());
+    });
   }
 
   Future<void> createVault(SecureBuffer mp) async {
-    // Seed 3 honeypot canaries (v4 §6.1). They look real but are invisible in
-    // the UI; any access triggers the alarm (lock + lockdown).
-    _entries = _generateCanaries();
-    final json = Uint8List.fromList(
-      jsonEncode({'entries': _entries.map((e) => e.toJson()).toList()})
-          .codeUnits,
-    );
-    _currentBlob = await _crypto.lockVault(json, mp);
-    _blobSalt = V4Header.parse(_currentBlob!).salt;
-    await _storage.writeBlob(_currentBlob!);
-    await _snapshots.saveSnapshot(_currentBlob!);
-    _searchTags = {};
+    await _mutex.synchronized(() async {
+      // Seed 3 honeypot canaries (v4 §6.1). They look real but are invisible in
+      // the UI; any access triggers the alarm (lock + lockdown).
+      _entries = _generateCanaries();
+      final json = Uint8List.fromList(
+        jsonEncode({'entries': _entries.map((e) => e.toJson()).toList()})
+            .codeUnits,
+      );
+      _currentBlob = await _crypto.lockVault(json, mp);
+      _blobSalt = V4Header.parse(_currentBlob!).salt;
+      await _storage.writeBlob(_currentBlob!);
+      await _snapshots.saveSnapshot(_currentBlob!);
+      _searchTags = {};
 
-    // Hold the VRK so the user can add entries immediately after creation
-    // (state-loss fix: addEntry silently returned when _vrk was null).
-    final header = V4Header.parse(_currentBlob!);
-    final mk = Argon2id.derive(
-      mp.readBytes(),
-      header.salt,
-      memory: header.kdfMemory,
-      iterations: header.kdfIterations,
-      parallelism: header.kdfParallelism,
-    );
-    _vrk?.dispose();
-    _vrk = SecureBuffer.fromList(KeyHierarchy.deriveVrk(mk));
-    _isDuress = false;
+      // Hold the VRK so the user can add entries immediately after creation
+      // (state-loss fix: addEntry silently returned when _vrk was null).
+      final header = V4Header.parse(_currentBlob!);
+      final mk = Argon2id.derive(
+        mp.readBytes(),
+        header.salt,
+        memory: header.kdfMemory,
+        iterations: header.kdfIterations,
+        parallelism: header.kdfParallelism,
+      );
+      _vrk?.dispose();
+      _vrk = SecureBuffer.fromList(KeyHierarchy.deriveVrk(mk));
+      _isDuress = false;
 
-    _store.dispatch(
-        VaultCreated(vaultData: VaultData(entries: []), blob: _currentBlob!));
+      _store.dispatch(
+          VaultCreated(vaultData: VaultData(entries: []), blob: _currentBlob!));
+    });
   }
 
   // Biometric fast path (Phase D.1): unlock using a VRK retrieved from the
   // Keystore, skipping Argon2id. Falls back to MP if the VRK is absent.
   Future<bool> unlockWithVrk(Uint8List vrk) async {
-    try {
-      final blob = _currentBlob!;
-      final entries = VaultCryptoV4.decryptToEntries(blob, vrk);
-      _vrk?.dispose();
-      _vrk = SecureBuffer.fromList(vrk);
-      // Zero the caller's plaintext VRK copy now that it lives in native
-      // secure memory. Prevents the VRK lingering in Dart heap memory.
-      vrk.fillRange(0, vrk.length, 0);
-      _blobSalt = V4Header.parse(blob).salt;
-      _entries = entries;
-      _isDuress = false;
-      _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
-      return true;
-    } catch (_) {
-      return false;
-    }
+    return _mutex.synchronized(() async {
+      try {
+        final blob = _currentBlob!;
+        final entries = VaultCryptoV4.decryptToEntries(blob, vrk);
+        _vrk?.dispose();
+        _vrk = SecureBuffer.fromList(vrk);
+        // Zero the caller's plaintext VRK copy now that it lives in native
+        // secure memory. Prevents the VRK lingering in Dart heap memory.
+        vrk.fillRange(0, vrk.length, 0);
+        _blobSalt = V4Header.parse(blob).salt;
+        _entries = entries;
+        _isDuress = false;
+        _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
+        return true;
+      } catch (_) {
+        return false;
+      }
+    });
   }
 
   Future<void> unlock(SecureBuffer mp) async {
@@ -255,8 +266,7 @@ class VaultService implements Lockable {
       _entries.add(v4);
       _searchTags[v4.id] =
           SearchTag.computePrefixes(_vrk!.readBytes(), v4.domain);
-      _currentBlob =
-          await _crypto.relock(_vrk!.readBytes(), _entries, salt: _blobSalt);
+      _currentBlob = await _relockCurrent(_vrk!.readBytes(), _entries);
       await _storage.writeBlobAtomic(_currentBlob!);
       await _snapshots.saveSnapshot(_currentBlob!);
       _store.dispatch(AddEntry(entry: entry));
@@ -399,8 +409,7 @@ class VaultService implements Lockable {
       final idx = _entries.indexWhere((e) => e.id == entryId);
       if (idx < 0) return;
       _entries[idx].passkeyCredentialId = credentialId;
-      _currentBlob =
-          await _crypto.relock(_vrk!.readBytes(), _entries, salt: _blobSalt);
+      _currentBlob = await _relockCurrent(_vrk!.readBytes(), _entries);
       await _storage.writeBlobAtomic(_currentBlob!);
       await _snapshots.saveSnapshot(_currentBlob!);
     });
@@ -426,6 +435,25 @@ class VaultService implements Lockable {
       memory: header.kdfMemory,
       iterations: header.kdfIterations,
       parallelism: header.kdfParallelism,
+    );
+  }
+
+  // Re-lock the CURRENT vault, forwarding the header's KDF params. The old
+  // call sites passed only salt, so _buildBlob recorded FLOOR params in the new
+  // header. If a vault ever has params P > floor, the next cold unlock derives
+  // MK under floor -> wrong VRK -> DecryptionFailedError (vault bricked). This
+  // helper preserves the actual params so edit round-trips stay consistent.
+  Future<Uint8List> _relockCurrent(Uint8List vrk, List<V4VaultEntry> entries,
+      {Uint8List? decoyBlob}) async {
+    final h = V4Header.parse(_currentBlob!);
+    return _crypto.relock(
+      vrk,
+      entries,
+      salt: _blobSalt,
+      kdfMemory: h.kdfMemory,
+      kdfIterations: h.kdfIterations,
+      kdfParallelism: h.kdfParallelism,
+      decoyBlob: decoyBlob,
     );
   }
 
@@ -495,8 +523,7 @@ class VaultService implements Lockable {
         _searchTags[e.id] =
             SearchTag.computePrefixes(_vrk!.readBytes(), e.domain);
       }
-      _currentBlob =
-          await _crypto.relock(_vrk!.readBytes(), _entries, salt: _blobSalt);
+      _currentBlob = await _relockCurrent(_vrk!.readBytes(), _entries);
       await _storage.writeBlobAtomic(_currentBlob!);
       await _snapshots.saveSnapshot(_currentBlob!);
     });
@@ -576,12 +603,7 @@ class VaultService implements Lockable {
       // Re-lock the primary vault with the decoy embedded in slot 2.
       final mk = await _deriveMk(blob, primaryMp);
       final vrk = KeyHierarchy.deriveVrk(mk);
-      _currentBlob = await _crypto.relock(
-        vrk,
-        _entries,
-        salt: salt,
-        decoyBlob: decoy,
-      );
+      _currentBlob = await _relockCurrent(vrk, _entries, decoyBlob: decoy);
       await _storage.writeBlobAtomic(_currentBlob!);
       return DecoyVault.generateCancellationCode();
     });
@@ -608,23 +630,25 @@ class VaultService implements Lockable {
   // Opt-in, off by default. If the user loses the MP but has K shares, they can
   // reconstruct the MK and unlock the vault.
   Future<bool> unlockWithShares(List<Share> shares) async {
-    final blob = _currentBlob;
-    if (blob == null) return false;
-    final mk = ShamirKit.reconstruct(shares);
-    final header = V4Header.parse(blob);
-    final vrk = KeyHierarchy.deriveVrk(mk);
-    try {
-      final entries = VaultCryptoV4.decryptToEntries(blob, vrk);
-      _vrk?.dispose();
-      _vrk = SecureBuffer.fromList(vrk);
-      _blobSalt = header.salt;
-      _entries = entries;
-      _isDuress = false;
-      _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
-      return true;
-    } catch (_) {
-      return false;
-    }
+    return _mutex.synchronized(() async {
+      final blob = _currentBlob;
+      if (blob == null) return false;
+      final mk = ShamirKit.reconstruct(shares);
+      final header = V4Header.parse(blob);
+      final vrk = KeyHierarchy.deriveVrk(mk);
+      try {
+        final entries = VaultCryptoV4.decryptToEntries(blob, vrk);
+        _vrk?.dispose();
+        _vrk = SecureBuffer.fromList(vrk);
+        _blobSalt = header.salt;
+        _entries = entries;
+        _isDuress = false;
+        _store.dispatch(UnlockSuccess(vaultData: _toVaultData(_entries)));
+        return true;
+      } catch (_) {
+        return false;
+      }
+    });
   }
 
   // Manual export (Phase F.4): copy the raw V4 blob to a user-selected path.
@@ -648,12 +672,14 @@ class VaultService implements Lockable {
       _currentBlob = imported;
       _blobSalt = V4Header.parse(imported).salt;
       await _storage.writeBlobAtomic(imported);
-      // State-corruption fix: the old code swapped _currentBlob/_blobSalt but
-      // kept the previous session's _vrk/_entries. A subsequent addEntry would
-      // re-encrypt OLD entries under the OLD VRK with the NEW salt. Locking
-      // wipes the stale VRK/entries so the next unlock loads the imported vault.
-      await lock();
     });
+    // State-corruption fix: the old code swapped _currentBlob/_blobSalt but
+    // kept the previous session's _vrk/_entries. A subsequent addEntry would
+    // re-encrypt OLD entries under the OLD VRK with the NEW salt. Locking
+    // wipes the stale VRK/entries so the next unlock loads the imported vault.
+    // lock() runs OUTSIDE the mutex so it can never self-deadlock if it ever
+    // acquires the mutex itself.
+    await lock();
   }
 
   // v5 E17/V3.3: ATOMIC master-password change. Re-wraps all DEKs under the new
@@ -663,38 +689,40 @@ class VaultService implements Lockable {
   // fully intact. No mixed tag/VRK state is observable.
   Future<void> changeMasterPassword(
       SecureBuffer oldMp, SecureBuffer newMp) async {
-    final blob = _currentBlob;
-    if (blob == null) throw StateError('No vault loaded');
-    final sfmFile =
-        await _storage.sfmExists() ? await _storage.readSfm() : null;
-    final result = await _crypto.changeMasterPassword(blob, oldMp, newMp,
-        sfmFile: sfmFile);
-    // Atomic persistence: vault blob first, then SFM file. Each is a
-    // temp-file-then-rename; an interruption between them leaves the vault
-    // under the new MP with the old SFM file — but the old SFM file is still
-    // decryptable under the OLD MK_base only, so no mixed state is usable.
-    await _storage.writeBlobAtomic(result.blob);
-    if (result.sfmFile != null) {
-      await _storage.writeSfmAtomic(result.sfmFile!);
-    }
-    _currentBlob = result.blob;
-    _blobSalt = V4Header.parse(result.blob).salt;
-    // Re-derive the held VRK under the new MP so the session stays unlocked.
-    final header = V4Header.parse(result.blob);
-    final mk = Argon2id.derive(
-      newMp.readBytes(),
-      header.salt,
-      memory: header.kdfMemory,
-      iterations: header.kdfIterations,
-      parallelism: header.kdfParallelism,
-    );
-    final newVrk = KeyHierarchy.deriveVrk(mk);
-    _vrk?.dispose();
-    _vrk = SecureBuffer.fromList(newVrk);
-    _searchTags = {};
-    for (final e in _entries) {
-      _searchTags[e.id] = SearchTag.computePrefixes(newVrk, e.domain);
-    }
+    await _mutex.synchronized(() async {
+      final blob = _currentBlob;
+      if (blob == null) throw StateError('No vault loaded');
+      final sfmFile =
+          await _storage.sfmExists() ? await _storage.readSfm() : null;
+      final result = await _crypto.changeMasterPassword(blob, oldMp, newMp,
+          sfmFile: sfmFile);
+      // Atomic persistence: vault blob first, then SFM file. Each is a
+      // temp-file-then-rename; an interruption between them leaves the vault
+      // under the new MP with the old SFM file — but the old SFM file is still
+      // decryptable under the OLD MK_base only, so no mixed state is usable.
+      await _storage.writeBlobAtomic(result.blob);
+      if (result.sfmFile != null) {
+        await _storage.writeSfmAtomic(result.sfmFile!);
+      }
+      _currentBlob = result.blob;
+      _blobSalt = V4Header.parse(result.blob).salt;
+      // Re-derive the held VRK under the new MP so the session stays unlocked.
+      final header = V4Header.parse(result.blob);
+      final mk = Argon2id.derive(
+        newMp.readBytes(),
+        header.salt,
+        memory: header.kdfMemory,
+        iterations: header.kdfIterations,
+        parallelism: header.kdfParallelism,
+      );
+      final newVrk = KeyHierarchy.deriveVrk(mk);
+      _vrk?.dispose();
+      _vrk = SecureBuffer.fromList(newVrk);
+      _searchTags = {};
+      for (final e in _entries) {
+        _searchTags[e.id] = SearchTag.computePrefixes(newVrk, e.domain);
+      }
+    });
   }
 
   // Canary alarm (v4 §6.1): lock immediately, wipe VRK, flag lockdown.

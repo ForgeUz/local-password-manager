@@ -62,7 +62,8 @@ class Transition {
 const List<Transition> VALID_TRANSITIONS = [
   // LOCKED → UNLOCKING → UNLOCKED → LOCKING → LOCKED
   Transition(VaultState.locked, VaultEvent.beginUnlock, VaultState.unlocking),
-  Transition(VaultState.unlocking, VaultEvent.unlockSuccess, VaultState.unlocked),
+  Transition(
+      VaultState.unlocking, VaultEvent.unlockSuccess, VaultState.unlocked),
   Transition(VaultState.unlocking, VaultEvent.unlockFail, VaultState.locked),
   Transition(VaultState.unlocked, VaultEvent.beginLock, VaultState.locking),
   Transition(VaultState.locking, VaultEvent.lockComplete, VaultState.locked),
@@ -70,14 +71,20 @@ const List<Transition> VALID_TRANSITIONS = [
   Transition(VaultState.unlocked, VaultEvent.beginSave, VaultState.saving),
   Transition(VaultState.saving, VaultEvent.saveComplete, VaultState.unlocked),
   // UNLOCKED → ENTRY_DECRYPTING → UNLOCKED
-  Transition(VaultState.unlocked, VaultEvent.beginEntryDecrypt, VaultState.entryDecrypting),
-  Transition(VaultState.entryDecrypting, VaultEvent.entryDecryptComplete, VaultState.unlocked),
+  Transition(VaultState.unlocked, VaultEvent.beginEntryDecrypt,
+      VaultState.entryDecrypting),
+  Transition(VaultState.entryDecrypting, VaultEvent.entryDecryptComplete,
+      VaultState.unlocked),
   // LOCKED → RECOVERY_MODE → UNLOCKED
-  Transition(VaultState.locked, VaultEvent.enterRecovery, VaultState.recoveryMode),
-  Transition(VaultState.recoveryMode, VaultEvent.recoveryComplete, VaultState.unlocked),
+  Transition(
+      VaultState.locked, VaultEvent.enterRecovery, VaultState.recoveryMode),
+  Transition(VaultState.recoveryMode, VaultEvent.recoveryComplete,
+      VaultState.unlocked),
   // UNLOCKED → DURESS_TRIGGERED → DECOY_UNLOCKED
-  Transition(VaultState.unlocked, VaultEvent.triggerDuress, VaultState.duressTriggered),
-  Transition(VaultState.duressTriggered, VaultEvent.duressComplete, VaultState.decoyUnlocked),
+  Transition(VaultState.unlocked, VaultEvent.triggerDuress,
+      VaultState.duressTriggered),
+  Transition(VaultState.duressTriggered, VaultEvent.duressComplete,
+      VaultState.decoyUnlocked),
 ];
 
 /// The state machine model. Applies events and tracks whether a transition is

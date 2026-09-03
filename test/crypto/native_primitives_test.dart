@@ -31,10 +31,38 @@ void main() {
       final key = Uint8List.fromList(List.generate(32, (_) => 0xaa));
       final data = Uint8List.fromList(List.generate(50, (_) => 0xdd));
       final expected = Uint8List.fromList([
-        0xcd, 0xcb, 0x12, 0x20, 0xd1, 0xec, 0xcc, 0xea,
-        0x91, 0xe5, 0x3a, 0xba, 0x30, 0x92, 0xf9, 0x62,
-        0xe5, 0x49, 0xfe, 0x6c, 0xe9, 0xed, 0x7f, 0xdc,
-        0x43, 0x19, 0x1f, 0xbd, 0xe4, 0x5c, 0x30, 0xb0,
+        0xcd,
+        0xcb,
+        0x12,
+        0x20,
+        0xd1,
+        0xec,
+        0xcc,
+        0xea,
+        0x91,
+        0xe5,
+        0x3a,
+        0xba,
+        0x30,
+        0x92,
+        0xf9,
+        0x62,
+        0xe5,
+        0x49,
+        0xfe,
+        0x6c,
+        0xe9,
+        0xed,
+        0x7f,
+        0xdc,
+        0x43,
+        0x19,
+        0x1f,
+        0xbd,
+        0xe4,
+        0x5c,
+        0x30,
+        0xb0,
       ]);
       final actual = HmacSha256.compute(key, data);
       expect(ConstantTime.equals(actual, expected), isTrue);
@@ -46,9 +74,26 @@ void main() {
       // SHA-1("abc") = a9993e364706816aba3e25717850c26c9cd0d89d
       final actual = Sha1.hash(Uint8List.fromList('abc'.codeUnits));
       final expected = Uint8List.fromList([
-        0xa9, 0x99, 0x3e, 0x36, 0x47, 0x06, 0x81, 0x6a,
-        0xba, 0x3e, 0x25, 0x71, 0x78, 0x50, 0xc2, 0x6c,
-        0x9c, 0xd0, 0xd8, 0x9d,
+        0xa9,
+        0x99,
+        0x3e,
+        0x36,
+        0x47,
+        0x06,
+        0x81,
+        0x6a,
+        0xba,
+        0x3e,
+        0x25,
+        0x71,
+        0x78,
+        0x50,
+        0xc2,
+        0x6c,
+        0x9c,
+        0xd0,
+        0xd8,
+        0x9d,
       ]);
       expect(ConstantTime.equals(actual, expected), isTrue);
     });
@@ -69,12 +114,48 @@ void main() {
       final salt = Uint8List.fromList(List.generate(13, (i) => i));
       // Expected computed via Python hmac.sha256 for info='f0f1f2f3f4f5f6f7f8f9'.
       final expected = Uint8List.fromList([
-        0xe0, 0x30, 0xb6, 0x75, 0x5e, 0x42, 0xe4, 0x0d,
-        0x69, 0x8b, 0xc2, 0xbb, 0xad, 0x71, 0xca, 0xe4,
-        0xa5, 0x70, 0x4f, 0x02, 0xd0, 0xbc, 0xc9, 0xb4,
-        0x05, 0xea, 0xb2, 0x9c, 0x5a, 0x32, 0x8e, 0x42,
-        0x9b, 0xfa, 0x43, 0x01, 0x03, 0x5e, 0x09, 0xc5,
-        0x1b, 0xa8,
+        0xe0,
+        0x30,
+        0xb6,
+        0x75,
+        0x5e,
+        0x42,
+        0xe4,
+        0x0d,
+        0x69,
+        0x8b,
+        0xc2,
+        0xbb,
+        0xad,
+        0x71,
+        0xca,
+        0xe4,
+        0xa5,
+        0x70,
+        0x4f,
+        0x02,
+        0xd0,
+        0xbc,
+        0xc9,
+        0xb4,
+        0x05,
+        0xea,
+        0xb2,
+        0x9c,
+        0x5a,
+        0x32,
+        0x8e,
+        0x42,
+        0x9b,
+        0xfa,
+        0x43,
+        0x01,
+        0x03,
+        0x5e,
+        0x09,
+        0xc5,
+        0x1b,
+        0xa8,
       ]);
       final actual = Hkdf.derive(ikm, salt, 'f0f1f2f3f4f5f6f7f8f9', 42);
       expect(ConstantTime.equals(actual, expected), isTrue);
@@ -116,10 +197,13 @@ void main() {
 
   group('Argon2id', () {
     test('derives deterministic key from password+salt', () {
-      final mp = Uint8List.fromList(utf8.encode('correct horse battery staple'));
+      final mp =
+          Uint8List.fromList(utf8.encode('correct horse battery staple'));
       final salt = Uint8List.fromList(List.generate(16, (_) => 0x42));
-      final k1 = Argon2id.derive(mp, salt, memory: 65536, iterations: 3, parallelism: 1);
-      final k2 = Argon2id.derive(mp, salt, memory: 65536, iterations: 3, parallelism: 1);
+      final k1 = Argon2id.derive(mp, salt,
+          memory: 65536, iterations: 3, parallelism: 1);
+      final k2 = Argon2id.derive(mp, salt,
+          memory: 65536, iterations: 3, parallelism: 1);
       expect(k1.length, 32);
       expect(ConstantTime.equals(k1, k2), isTrue);
     });

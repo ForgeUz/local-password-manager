@@ -12,11 +12,20 @@ void main() {
       final canaries = VaultService.generateCanariesForTest();
       expect(canaries.length, 3);
       for (final e in canaries) {
-        final blob = '${e.title} ${e.username} ${e.password} ${e.url} ${e.domain}'
-            .toLowerCase();
-        for (final w in const ['decoy', 'fake', 'dummy', 'test', 'example',
-            'bunker', 'canary']) {
-          expect(blob.contains(w), isFalse, reason: 'forbidden word "$w" in $blob');
+        final blob =
+            '${e.title} ${e.username} ${e.password} ${e.url} ${e.domain}'
+                .toLowerCase();
+        for (final w in const [
+          'decoy',
+          'fake',
+          'dummy',
+          'test',
+          'example',
+          'bunker',
+          'canary'
+        ]) {
+          expect(blob.contains(w), isFalse,
+              reason: 'forbidden word "$w" in $blob');
         }
       }
     });
@@ -25,14 +34,24 @@ void main() {
       final entries = DecoySetupScreen.secondaryEntriesForTest();
       expect(entries.length, 8);
       for (final e in entries) {
-        final blob = '${e.title} ${e.username} ${e.password} ${e.url} ${e.domain}'
-            .toLowerCase();
+        final blob =
+            '${e.title} ${e.username} ${e.password} ${e.url} ${e.domain}'
+                .toLowerCase();
         for (final w in _forbidden) {
-          expect(blob.contains(w), isFalse, reason: 'forbidden word "$w" in $blob');
+          expect(blob.contains(w), isFalse,
+              reason: 'forbidden word "$w" in $blob');
         }
       }
     });
   });
 }
 
-const _forbidden = ['decoy', 'fake', 'dummy', 'test', 'example', 'bunker', 'canary'];
+const _forbidden = [
+  'decoy',
+  'fake',
+  'dummy',
+  'test',
+  'example',
+  'bunker',
+  'canary'
+];

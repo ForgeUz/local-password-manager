@@ -23,7 +23,7 @@ void main() {
   test('writeBlob creates file and vaultExists returns true', () async {
     await storage.writeBlob(Uint8List.fromList([1, 2, 3]));
     expect(await storage.vaultExists(), isTrue);
-    
+
     final read = await storage.readBlob();
     expect(read, equals(Uint8List.fromList([1, 2, 3])));
   });

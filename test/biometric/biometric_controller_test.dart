@@ -22,14 +22,14 @@ void main() {
   test('BiometricController dispatches UnlockSuccess on true', () async {
     final mock = MockBiometricPlatform(shouldSucceed: true);
     LockIntent? dispatchedIntent;
-    
+
     final controller = BiometricController(
       platform: mock,
       dispatch: (intent) => dispatchedIntent = intent,
     );
 
     await controller.authenticate();
-    
+
     expect(dispatchedIntent, isA<UnlockSuccess>());
     expect(mock.callCount, 1);
   });
@@ -37,28 +37,28 @@ void main() {
   test('BiometricController dispatches UnlockFail on false', () async {
     final mock = MockBiometricPlatform(shouldSucceed: false);
     LockIntent? dispatchedIntent;
-    
+
     final controller = BiometricController(
       platform: mock,
       dispatch: (intent) => dispatchedIntent = intent,
     );
 
     await controller.authenticate();
-    
+
     expect(dispatchedIntent, isA<UnlockFail>());
   });
 
   test('BiometricController dispatches UnlockFail on exception', () async {
     final mock = MockBiometricPlatform(error: Exception('Keystore locked'));
     LockIntent? dispatchedIntent;
-    
+
     final controller = BiometricController(
       platform: mock,
       dispatch: (intent) => dispatchedIntent = intent,
     );
 
     await controller.authenticate();
-    
+
     expect(dispatchedIntent, isA<UnlockFail>());
   });
 }

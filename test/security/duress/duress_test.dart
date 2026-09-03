@@ -45,8 +45,9 @@ void main() {
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old Email","username":"a@b.c",'
-        '"password":"low","url":"mail.example.com","domain":"mail.example.com",'
-        '"tier":0}]}'.codeUnits,
+                '"password":"low","url":"mail.example.com","domain":"mail.example.com",'
+                '"tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => 0xFF - i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);
@@ -54,7 +55,8 @@ void main() {
           decoyBlob: decoy, fixedSalt: fixedSalt);
 
       // Primary MP -> primary (empty) vault.
-      expect(await crypto.unlockVault(blob, _mp('primary')), equals(primaryJson));
+      expect(
+          await crypto.unlockVault(blob, _mp('primary')), equals(primaryJson));
       // Duress MP -> decoy vault (isolated).
       final session = await crypto.duressUnlockSession(blob, _mp('duress'));
       expect(session.entries.length, 1);
@@ -67,8 +69,9 @@ void main() {
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old Email","username":"a@b.c",'
-        '"password":"low","url":"mail.example.com","domain":"mail.example.com",'
-        '"tier":0}]}'.codeUnits,
+                '"password":"low","url":"mail.example.com","domain":"mail.example.com",'
+                '"tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);
@@ -88,7 +91,8 @@ void main() {
       final primaryJson = Uint8List.fromList('{"entries":[]}'.codeUnits);
       final decoyJson = Uint8List.fromList(
         '{"entries":[{"id":"d1","title":"Old","username":"a","password":"x",'
-        '"url":"old.com","domain":"old.com","tier":0}]}'.codeUnits,
+                '"url":"old.com","domain":"old.com","tier":0}]}'
+            .codeUnits,
       );
       final fixedSalt = Uint8List.fromList(List.generate(16, (i) => i));
       final decoy = await crypto.lockDecoy(decoyJson, _mp('duress'), fixedSalt);

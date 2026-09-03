@@ -32,7 +32,8 @@ void main() {
     expect(st.currentState, isA<SetupRequired>());
   });
 
-  test('corrupt/foreign blob -> BlobCorrupt (CorruptScreen with reset)', () async {
+  test('corrupt/foreign blob -> BlobCorrupt (CorruptScreen with reset)',
+      () async {
     final st = store();
     final storage = VaultStorage(baseDir: dir);
     final svc = service(st, storage);

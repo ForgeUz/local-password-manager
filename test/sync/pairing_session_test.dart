@@ -7,7 +7,7 @@ void main() {
   test('StartPairing generates >=8-char alphanumeric passphrase (E18)', () {
     final session = PairingSession();
     final state = session.startPairing();
-    
+
     expect(state.status, PairingStatus.waitingForPeer);
     expect(state.pin.length, greaterThanOrEqualTo(8));
     // Alphanumeric only (no short numeric PIN).
@@ -27,14 +27,14 @@ void main() {
   test('HandshakeFail increments attempts, enforces cooldown after 3', () {
     var session = PairingSession();
     var state = session.startPairing();
-    
+
     state = session.handleHandshakeFail(state);
     expect(state.status, PairingStatus.waitingForPeer);
     expect(state.attempts, 1);
-    
+
     state = session.handleHandshakeFail(state);
     state = session.handleHandshakeFail(state);
-    
+
     expect(state.status, PairingStatus.cooldown);
     expect(state.attempts, 3);
   });
@@ -42,7 +42,7 @@ void main() {
   test('HandshakeSuccess sets Paired', () {
     var session = PairingSession();
     var state = session.startPairing();
-    
+
     state = session.handleHandshakeSuccess(state);
     expect(state.status, PairingStatus.paired);
   });
@@ -50,7 +50,7 @@ void main() {
   test('Timeout sets Failed', () {
     var session = PairingSession();
     var state = session.startPairing();
-    
+
     state = session.handleTimeout(state);
     expect(state.status, PairingStatus.failed);
   });

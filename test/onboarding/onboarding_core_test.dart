@@ -26,10 +26,10 @@ void main() {
       final store = OnboardingStore();
       store.dispatch(BeginOnboarding());
       store.dispatch(AcceptDoctrine());
-      
+
       final mp = SecureBuffer.fromList(Uint8List.fromList([1, 2, 3]));
       store.dispatch(SubmitMP(mp));
-      
+
       expect(store.currentState, isA<OnboardingDecoyOptIn>());
       expect(store.masterPassword, isNotNull);
     });
@@ -42,12 +42,13 @@ void main() {
       store.dispatch(AcceptDoctrine());
       // To get to CreateMP WITH an MP stored, we must go forward to DecoyOptIn,
       // then go back to CreateMP.
-      store.dispatch(SubmitMP(SecureBuffer.fromList(Uint8List.fromList([1, 2, 3]))));
+      store.dispatch(
+          SubmitMP(SecureBuffer.fromList(Uint8List.fromList([1, 2, 3]))));
       store.dispatch(GoBack()); // Back to CreateMP. MP is still stored.
-      
+
       // Now go back again to Doctrine. This should trigger the wipe.
       store.dispatch(GoBack());
-      
+
       expect(store.currentState, isA<OnboardingDoctrine>());
       expect(store.masterPassword, isNull);
     });
@@ -58,7 +59,7 @@ void main() {
       store.dispatch(AcceptDoctrine());
       store.dispatch(SubmitMP(SecureBuffer.fromList(Uint8List.fromList([1]))));
       // Now in DecoyOptIn. MP is stored.
-      
+
       store.dispatch(GoBack());
       // Now in CreateMP. MP should STILL be stored.
       expect(store.currentState, isA<OnboardingCreateMP>());
